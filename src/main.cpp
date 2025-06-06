@@ -4,8 +4,6 @@
 #include "error_listener.h"
 #include "type_checker.h"
 
-using namespace antlr4;
-
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <file>\n";
@@ -19,9 +17,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    ANTLRInputStream input(MiniFile);
+    antlr4::ANTLRInputStream input(MiniFile);
     MiniLexer lexer(&input);
-    CommonTokenStream tokens(&lexer);
+    antlr4::CommonTokenStream tokens(&lexer);
     MiniParser parser(&tokens);
 
     ErrorListener errorListener;

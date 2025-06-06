@@ -9,9 +9,7 @@ LDARGS=-g
 LIBS=$(RUNTIME)/lib/libantlr4-runtime.a
 
 GEN_SRC=generated/MiniLexer.cpp \
-        generated/MiniParser.cpp \
-        generated/MiniBaseVisitor.cpp \
-        generated/MiniVisitor.cpp
+        generated/MiniParser.cpp
 GEN_OBJ=$(patsubst generated/%.cpp, build/%.o, $(GEN_SRC))
 
 CPP_SRC=$(wildcard src/*.cpp) 
@@ -23,7 +21,7 @@ all: mini
 
 $(GENERATED): $(GRAMMAR)
 	@mkdir -p $(GENERATED)
-	$(JAVA) -jar antlr/antlr-4.13.2-complete.jar -Dlanguage=Cpp -no-listener -visitor -o $(GENERATED) $(GRAMMAR)
+	$(JAVA) -jar antlr/antlr-4.13.2-complete.jar -Dlanguage=Cpp -no-listener -no-visitor -o $(GENERATED) $(GRAMMAR)
 
 build/%.o: src/%.cpp $(GENERATED)
 	@mkdir -p build

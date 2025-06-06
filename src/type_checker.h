@@ -1,7 +1,6 @@
 #pragma once
 
-#include "MiniBaseVisitor.h"
-#include "antlr4-runtime.h"
+#include "MiniParser.h"
 
 #include "ast.h"
 

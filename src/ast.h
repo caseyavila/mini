@@ -14,7 +14,7 @@ struct Array {};
 struct Null {};
 struct Void {};
 
-using Type = std::variant<Int, Bool, Struct, Array, Null, Void>;
+using Type = std::variant<Int, Bool, Struct, Array, Void>;
 
 struct Declaration {
     Type type;
