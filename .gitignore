@@ -1,0 +1,5 @@
+build/
+generated/
+*.swp
+.gdb_history
+mini

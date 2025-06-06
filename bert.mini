@@ -1,0 +1,25 @@
+struct node
+{
+   int data;
+   struct node next;
+   struct point point;
+};
+
+struct point
+{
+   int x;
+   int y;
+   struct node node;
+};
+
+fun main() int
+{
+   int i, element;
+   struct node myList, copyList1, copyList2, sortedList;
+
+   myList.next.next.next.data = i;
+
+   i = i + 1;
+
+   return 0;
+}

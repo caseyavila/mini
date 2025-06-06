@@ -1,0 +1,5 @@
+CompileFlags:
+  Add:
+    - "-std=c++20"
+    - "--include-directory=/home/casey/Projects/compiler/antlr/runtime/include"
+    - "--include-directory=/home/casey/Projects/compiler/generated"
