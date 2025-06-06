@@ -12,6 +12,10 @@ struct point
    struct node node;
 };
 
+struct point hi;
+int h;
+bool deez;
+
 fun main() int
 {
    int i, element;
