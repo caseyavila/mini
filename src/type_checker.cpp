@@ -12,7 +12,7 @@ concept HasContains = requires(T t, K k) {
 };
 
 bool check_type(const Type &t, const HasContains<std::string> auto &types) {
-    if (auto s = std::get_if<Struct>(&t)) {
+    if (auto *s = std::get_if<Struct>(&t)) {
         if (!types.contains(s->id)) {
             std::cerr << "Invalid type: '" << s->id << "'\n";
             return false;
@@ -307,25 +307,25 @@ void check_stmt(const Program &prog, const Environment &tenv, const Function &fu
         const Environment &lenv, const Statement &stmt) {
     auto check_e = [&](const Expression &e) { return check_expr(prog, tenv, func, lenv, e); };
 
-    if (auto print = std::get_if<Print>(&stmt)) {
+    if (auto *print = std::get_if<Print>(&stmt)) {
         if (!std::holds_alternative<Int>(check_e(print->expr))) {
             std::cerr << "Cannot print " << check_e(print->expr) << "\n";
             std::exit(1);
         }
         return;
-    } else if (auto print_ln = std::get_if<PrintLn>(&stmt)) {
+    } else if (auto *print_ln = std::get_if<PrintLn>(&stmt)) {
         if (!std::holds_alternative<Int>(check_e(print_ln->expr))) {
             std::cerr << "Cannot print " << check_e(print_ln->expr) << "\n";
             std::exit(1);
         }
         return;
-    } else if (auto del = std::get_if<Delete>(&stmt)) {
+    } else if (auto *del = std::get_if<Delete>(&stmt)) {
         if (!std::holds_alternative<Struct>(check_e(del->expr))) {
             std::cerr << "Cannot delete " << check_e(del->expr) << "\n";
             std::exit(1);
         }
         return;
-    } else if (auto ret = std::get_if<Return>(&stmt)) {
+    } else if (auto *ret = std::get_if<Return>(&stmt)) {
         Type expr_t = Void {};
         if (ret->expr.has_value()) {
             expr_t = check_e(ret->expr.value());
@@ -335,14 +335,14 @@ void check_stmt(const Program &prog, const Environment &tenv, const Function &fu
             std::exit(1);
         }
         return;
-    } else if (auto loop = std::get_if<Loop>(&stmt)) {
+    } else if (auto *loop = std::get_if<Loop>(&stmt)) {
         if (!std::holds_alternative<Bool>(check_e(loop->guard))) {
             std::cerr << "Cannot use " << check_e(loop->guard) << " as 'while' guard\n";
             std::exit(1);
         }
         check_block(prog, tenv, func, lenv, loop->body);
         return;
-    } else if (auto cond = std::get_if<Conditional>(&stmt)) {
+    } else if (auto *cond = std::get_if<Conditional>(&stmt)) {
         if (!std::holds_alternative<Bool>(check_e(cond->guard))) {
             std::cerr << "Cannot use " << check_e(cond->guard) << " as 'if' guard\n";
             std::exit(1);
@@ -352,7 +352,7 @@ void check_stmt(const Program &prog, const Environment &tenv, const Function &fu
             check_block(prog, tenv, func, lenv, cond->els.value());
         }
         return;
-    } else if (auto ass = std::get_if<Assignment>(&stmt)) {
+    } else if (auto *ass = std::get_if<Assignment>(&stmt)) {
         Type lvalue_t = check_lvalue(prog, tenv, func, lenv, ass->lvalue);
         Type rvalue_t = Int {};
         if (auto *expr = std::get_if<Expression>(&ass->source)) {
@@ -363,13 +363,38 @@ void check_stmt(const Program &prog, const Environment &tenv, const Function &fu
             std::exit(1);
         }
         return;
-    } else if (auto inv = std::get_if<Invocation>(&stmt)) {
+    } else if (auto *inv = std::get_if<Invocation>(&stmt)) {
         check_invocation(prog, tenv, func, lenv, *inv);
         return;
     }
 
     std::cerr << "Unhandled statement typecheck, qutting...\n";
     std::exit(1);
+}
+
+/* check if all paths return */
+bool check_returns(const Block &block);
+
+bool check_stmt_return(const Statement &stmt) {
+    if (std::holds_alternative<Return>(stmt)) {
+        return true;
+    } else if (auto *cond = std::get_if<Conditional>(&stmt)) {
+        if (cond->els.has_value()) {
+            return check_returns(cond->then) && check_returns(cond->els.value());
+        }
+    }
+
+    return false;
+}
+
+bool check_returns(const Block &block) {
+    for (auto &stmt : block) {
+        if (check_stmt_return(stmt)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void check_function(const Program &prog, const Environment &tenv,
@@ -387,8 +412,12 @@ void check_function(const Program &prog, const Environment &tenv,
     }
 
     Environment lenv = environment(decls);
-
     check_block(prog, tenv, func, lenv, func.body);
+
+    if (!std::holds_alternative<Void>(func.return_type) && !check_returns(func.body)) {
+        std::cerr << "Not all control paths in '" << func.id << "' return\n";
+        std::exit(1);
+    }
 }
 
 void check_functions(const Program &prog, const Environment &tenv) {
