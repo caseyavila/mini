@@ -4,7 +4,7 @@ GRAMMAR=Mini.g4
 
 RUNTIME=antlr/runtime
 CC=g++
-CCARGS=-c -I $(RUNTIME)/include/ -I $(GENERATED) -std=c++20 -g
+CCARGS=-c -I $(RUNTIME)/include/ -I $(GENERATED) -std=c++20 -g -Wunused
 LDARGS=-g
 LIBS=$(RUNTIME)/lib/libantlr4-runtime.a
 

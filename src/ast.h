@@ -6,6 +6,9 @@
 #include <optional>
 #include <variant>
 #include <memory>
+#include <iostream>
+
+#include "MiniParser.h"
 
 struct Int {};
 struct Bool {};
@@ -14,7 +17,11 @@ struct Array {};
 struct Null {};
 struct Void {};
 
-using Type = std::variant<Int, Bool, Struct, Array, Void>;
+using Type = std::variant<Int, Bool, Struct, Array, Void, Null>;
+bool operator==(const Type& lhs, const Type& rhs);
+std::ostream& operator<<(std::ostream& os, const Type& type);
+
+using Environment = std::unordered_map<std::string, Type>;
 
 struct Declaration {
     Type type;
@@ -25,7 +32,6 @@ using TypeDeclarations = std::unordered_map<std::string, std::vector<Declaration
 
 /* Expressions */
 
-struct Id { std::string id; };
 struct True {};
 struct False {};
 struct NewStruct { std::string id; };
@@ -37,8 +43,8 @@ struct Index;
 struct Unary;
 struct Binary;
 
-using Expression = std::variant<Invocation, Dot, Index, Unary, Binary, Id, int,
-                                True, False, NewStruct, NewArray, Null>;
+using Expression = std::variant<Invocation, Dot, Index, Unary, Binary, std::string,
+                                int, True, False, NewStruct, NewArray, Null>;
 
 struct Invocation {
     std::string id;
@@ -55,20 +61,34 @@ struct Index {
     std::unique_ptr<Expression> index;
 };
 
-struct Unary {
-    enum class Op { Negative, Not };
+struct Negative {};
+struct Not {};
 
-    Op op;
+using UnaryOp = std::variant<Negative, Not>;
+
+struct Unary {
+    UnaryOp op;
     std::unique_ptr<Expression> expr;
 };
 
-struct Binary {
-    enum class Op {
-		Mul, Div, Add, Sub, Eq, NotEq, Greater,
-        GreaterEq, Less, LessEq, And, Or
-    };
+struct Mul {};
+struct Div {};
+struct Add {};
+struct Sub {};
+struct Eq {};
+struct Neq {};
+struct Grt {};
+struct Geq {};
+struct Lst {};
+struct Leq {};
+struct And {};
+struct Or {};
 
-    Op op;
+using BinaryOp = std::variant<Mul, Div, Add, Sub, Eq, Neq,
+                              Grt, Geq, Lst, Leq, And, Or>;
+
+struct Binary {
+    BinaryOp op;
     std::unique_ptr<Expression> left;
     std::unique_ptr<Expression> right;
 };
@@ -96,15 +116,26 @@ struct LValueIndex {
 
 struct Read {};
 struct Assignment {
-    std::variant<Expression, Read> source;
     LValue lvalue;
+    std::variant<Expression, Read> source;
 };
 
 struct Conditional;
 struct Loop;
 
-using Statement = std::variant<Invocation, Assignment, Conditional, Loop,
-                               Print, PrintLn, Delete, Return>;
+/* you're really gonna make me do this... */
+template<class T>
+using Smt = std::variant<Invocation, Assignment, Conditional, Loop,
+                         Print, PrintLn, Delete, Return, std::vector<T>>;
+
+template <template<class> class K>
+struct Fix : K<Fix<K>>
+{
+   using K<Fix>::K;
+};
+
+using Statement = Fix<Smt>;
+using Block = std::vector<Statement>;
 
 struct Conditional {
 	Expression guard;
@@ -127,8 +158,12 @@ struct Function {
     std::vector<Statement> body;
 };
 
+using Functions = std::unordered_map<std::string, Function>;
+
 struct Program {
     TypeDeclarations types;
     std::vector<Declaration> declarations;
-    std::vector<Function> functions;
+    Functions functions;
 };
+
+Program parse_program(MiniParser::ProgramContext *ctx);

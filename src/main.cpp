@@ -1,8 +1,9 @@
 #include "MiniLexer.h"
 #include "MiniParser.h"
 
-#include "error_listener.h"
+#include "ast.h"
 #include "type_checker.h"
+#include "error_listener.h"
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -25,8 +26,10 @@ int main(int argc, char *argv[]) {
     ErrorListener errorListener;
     parser.addErrorListener(&errorListener);
 
-    TypeChecker types_check;
-	types_check.check_program(parser.program());
+	Program prog = parse_program(parser.program());
+	check_program(prog);
 
     MiniFile.close();
+
+    return 0;
 }
