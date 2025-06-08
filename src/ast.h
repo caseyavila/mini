@@ -150,30 +150,32 @@ struct Loop {
 
 /* Program */
 
-/* want to put cfg stuff in other header but can't foward declare type aliases */
-struct CfgBasic;
-struct CfgConditional;
-struct CfgReturn;
+namespace cfg {
+    /* want to put cfg stuff in other header but can't foward declare type aliases */
+    struct Basic;
+    struct Conditional;
+    struct Return;
 
-using Cfg = std::variant<CfgBasic, CfgConditional, CfgReturn>;
-using CfgRef = std::variant<std::shared_ptr<CfgBasic>, std::shared_ptr<CfgConditional>,
-                            std::weak_ptr<CfgConditional>, std::shared_ptr<CfgReturn>>;
+    using Cfg = std::variant<Basic, Conditional, Return>;
+    using Ref = std::variant<std::shared_ptr<Basic>, std::shared_ptr<Conditional>,
+                             std::weak_ptr<Conditional>, std::shared_ptr<Return>>;
 
-struct CfgBasic {
-    Block statements;
-    CfgRef next;
-};
+    struct Basic {
+        Block statements;
+        Ref next;
+    };
 
-struct CfgConditional {
-    Block statements;
-    Expression guard;
-    CfgRef tru;
-    CfgRef fals;
-};
+    struct Conditional {
+        Block statements;
+        Expression guard;
+        Ref tru;
+        Ref fals;
+    };
 
-struct CfgReturn {
-    Block statements;
-};
+    struct Return {
+        Block statements;
+    };
+}
 
 struct Function {
 	std::string id;
@@ -182,7 +184,7 @@ struct Function {
     std::vector<Declaration> declarations;
     std::vector<Statement> body;
     Environment local_env;
-    CfgRef cfg;
+    cfg::Ref cfg;
 };
 
 using Functions = std::unordered_map<std::string, Function>;

@@ -6,21 +6,21 @@
 #include "ast.h"
 
 /* returns a reference to a cfg object */
-CfgRef cfg_ref(Cfg &&cfg) {
-    if (auto *basic = std::get_if<CfgBasic>(&cfg)) {
-        return std::make_shared<CfgBasic>(
+cfg::Ref cfg_ref(cfg::Cfg &&cfg) {
+    if (auto *basic = std::get_if<cfg::Basic>(&cfg)) {
+        return std::make_shared<cfg::Basic>(
             std::move(basic->statements),
             std::move(basic->next)
         );
-    } else if (auto *cond = std::get_if<CfgConditional>(&cfg)) {
-        return std::make_shared<CfgConditional>(
+    } else if (auto *cond = std::get_if<cfg::Conditional>(&cfg)) {
+        return std::make_shared<cfg::Conditional>(
             std::move(cond->statements),
             std::move(cond->guard),
             std::move(cond->tru),
             std::move(cond->fals)
         );
-    } else if (auto *ret = std::get_if<CfgReturn>(&cfg)) {
-        return std::make_shared<CfgReturn>(
+    } else if (auto *ret = std::get_if<cfg::Return>(&cfg)) {
+        return std::make_shared<cfg::Return>(
             std::move(ret->statements)
         );
     }
@@ -30,52 +30,52 @@ CfgRef cfg_ref(Cfg &&cfg) {
 }
 
 /* moving from the original ast block! */
-CfgRef cfg_block(Block::iterator begin, Block::iterator end, const CfgRef &follow) {
+cfg::Ref cfg_block(Block::iterator begin, Block::iterator end, const cfg::Ref &follow) {
     Block cfg_stmts;
 
     for (auto it = begin; it != end; it++) {
         Statement& current_stmt = *it;
         if (auto *loop_s = std::get_if<Loop>(&current_stmt)) {
-            auto cond = std::make_shared<CfgConditional>(CfgConditional {
+            auto cond = std::make_shared<cfg::Conditional>(cfg::Conditional {
                 {},
                 std::move(loop_s->guard)
             });
-            std::weak_ptr<CfgConditional> weak_cond = cond;
+            std::weak_ptr<cfg::Conditional> weak_cond = cond;
 
-            CfgRef body_ref = cfg_block(loop_s->body.begin(), loop_s->body.end(), weak_cond);
+            cfg::Ref body_ref = cfg_block(loop_s->body.begin(), loop_s->body.end(), weak_cond);
             cond->tru = body_ref;
 
-            CfgRef after_ref = cfg_block(it + 1, end, follow);
+            cfg::Ref after_ref = cfg_block(it + 1, end, follow);
             cond->fals = after_ref;
 
             if (cfg_stmts.size() == 0) {
                 return cond;
             } else {
-                return cfg_ref(CfgBasic {
+                return cfg_ref(cfg::Basic {
                     std::move(cfg_stmts),
                     cond
                 });
             }
         } else if (auto *cond_s = std::get_if<Conditional>(&current_stmt)) {
-            CfgConditional cond = CfgConditional {
+            cfg::Conditional cond = cfg::Conditional {
                 std::move(cfg_stmts),
                 std::move(cond_s->guard)
             };
 
-            CfgRef after_ref = cfg_block(it + 1, end, follow);
+            cfg::Ref after_ref = cfg_block(it + 1, end, follow);
             cond.fals = after_ref;
 
-            CfgRef then_ref = cfg_block(cond_s->then.begin(), cond_s->then.end(), after_ref);
+            cfg::Ref then_ref = cfg_block(cond_s->then.begin(), cond_s->then.end(), after_ref);
             cond.tru = then_ref;
 
             if (cond_s->els.has_value()) {
-                CfgRef els_ref = cfg_block(cond_s->els.value().begin(), cond_s->els.value().end(), after_ref);
+                cfg::Ref els_ref = cfg_block(cond_s->els.value().begin(), cond_s->els.value().end(), after_ref);
                 cond.fals = els_ref;
             }
 
             return cfg_ref(std::move(cond));
         } else if (std::holds_alternative<Return>(current_stmt)) {
-            return cfg_ref(CfgReturn { std::move(cfg_stmts) });
+            return cfg_ref(cfg::Return { std::move(cfg_stmts) });
         } else {
             cfg_stmts.emplace_back(std::move(*it));
         }
@@ -85,12 +85,12 @@ CfgRef cfg_block(Block::iterator begin, Block::iterator end, const CfgRef &follo
         return follow;
     }
 
-    return cfg_ref(CfgBasic { std::move(cfg_stmts), follow });
+    return cfg_ref(cfg::Basic { std::move(cfg_stmts), follow });
 }
 
 /* plzzzzzzzz work */
 struct CfgRefOwnerLess {
-    bool operator()(const CfgRef& lhs, const CfgRef& rhs) const {
+    bool operator()(const cfg::Ref& lhs, const cfg::Ref& rhs) const {
         return std::visit(
             [&](auto&& arg1, auto&& arg2) -> bool {
                 return std::owner_less<>{}(arg1, arg2);
@@ -105,11 +105,11 @@ struct CfgRefOwnerLess {
 void print_cfgs(const Program &prog) {
     for (auto &[_, func] : prog.functions) {
         std::cout << "\nfunction " << func.id << ":\n";
-        std::map<CfgRef, int, CfgRefOwnerLess> seen;
-        std::vector<std::pair<CfgRef, int>> stack;
+        std::map<cfg::Ref, int, CfgRefOwnerLess> seen;
+        std::vector<std::pair<cfg::Ref, int>> stack;
         int block_id = 0;
 
-        CfgRef curr = func.cfg;
+        cfg::Ref curr = func.cfg;
         int curr_indent = 0;
         stack.emplace_back(curr, curr_indent);
 
@@ -119,20 +119,20 @@ void print_cfgs(const Program &prog) {
             }
 
             if (seen.contains(curr)) {
-                std::cout << "--" << seen[curr] << "--\n";
+                std::cout << "-- " << seen[curr] << " --\n";
             } else {
                 seen.emplace(curr, block_id);
 
-                if (auto *ret = std::get_if<std::shared_ptr<CfgReturn>>(&curr)) {
+                if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&curr)) {
                     std::cout << block_id << ": return (" << ret->get()->statements.size() << ")\n";
-                } else if (auto *basic = std::get_if<std::shared_ptr<CfgBasic>>(&curr)) {
+                } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&curr)) {
                     std::cout << block_id << ": basic (" << basic->get()->statements.size() << ")\n";
                     stack.emplace_back(basic->get()->next, curr_indent + 1);
-                } else if (auto *cond = std::get_if<std::shared_ptr<CfgConditional>>(&curr)) {
+                } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&curr)) {
                     std::cout << block_id << ": conditional (" << cond->get()->statements.size() << ")\n";
                     stack.emplace_back(cond->get()->fals, curr_indent + 1);
                     stack.emplace_back(cond->get()->tru, curr_indent + 1);
-                } else if (std::holds_alternative<std::weak_ptr<CfgConditional>>(curr)) {
+                } else if (std::holds_alternative<std::weak_ptr<cfg::Conditional>>(curr)) {
                     std::cout << "Actually got a weak CFG ref, please examine...\n";
                     std::exit(1);
                 }
@@ -147,7 +147,7 @@ void print_cfgs(const Program &prog) {
 }
 
 void write_cfg_function(Function &func) {
-    func.cfg = cfg_block(func.body.begin(), func.body.end(), std::make_shared<CfgReturn>());
+    func.cfg = cfg_block(func.body.begin(), func.body.end(), std::make_shared<cfg::Return>());
 }
 
 void write_cfg(Program &prog) {
