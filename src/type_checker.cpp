@@ -398,7 +398,7 @@ bool check_returns(const Block &block) {
 }
 
 void check_function(const Program &prog, const Environment &tenv,
-        const Function &func) {
+        Function &func) {
     std::vector<Declaration> decls;
     decls.reserve(func.parameters.size() + func.declarations.size());
 
@@ -414,14 +414,19 @@ void check_function(const Program &prog, const Environment &tenv,
     Environment lenv = environment(decls);
     check_block(prog, tenv, func, lenv, func.body);
 
-    if (!std::holds_alternative<Void>(func.return_type) && !check_returns(func.body)) {
-        std::cerr << "Not all control paths in '" << func.id << "' return\n";
-        std::exit(1);
+    if (!check_returns(func.body)) {
+        if (std::holds_alternative<Void>(func.return_type)) {
+            func.body.emplace_back(Return { std::nullopt });
+        } else {
+            std::cerr << "Not all control paths in '" << func.id << "' return\n";
+            std::exit(1);
+        }
     }
+
+    func.local_env = lenv;
 }
 
-void check_functions(const Program &prog, const Environment &tenv) {
-
+void check_functions(Program &prog, const Environment &tenv) {
     auto main_i = prog.functions.find("main");
     if (main_i == prog.functions.end() || !std::holds_alternative<Int>(main_i->second.return_type)) {
         std::cerr << "No function 'main' with return type 'int' found\n";
@@ -433,7 +438,7 @@ void check_functions(const Program &prog, const Environment &tenv) {
     }
 }
 
-void check_program(const Program &program) {
+void check_program(Program &program) {
     for (auto &type : program.types) {
         if (!check_declarations(type.second, program.types)) {
             std::cerr << "in type declaration: '" << type.first << "'\n";
@@ -448,4 +453,6 @@ void check_program(const Program &program) {
 
     Environment tenv = environment(program.declarations);
     check_functions(program, tenv);
+
+    program.top_env = tenv;
 }

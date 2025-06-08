@@ -2,4 +2,4 @@
 
 #include "ast.h"
 
-void check_program(const Program &program);
+void check_program(Program &program);

@@ -150,12 +150,39 @@ struct Loop {
 
 /* Program */
 
+/* want to put cfg stuff in other header but can't foward declare type aliases */
+struct CfgBasic;
+struct CfgConditional;
+struct CfgReturn;
+
+using Cfg = std::variant<CfgBasic, CfgConditional, CfgReturn>;
+using CfgRef = std::variant<std::shared_ptr<CfgBasic>, std::shared_ptr<CfgConditional>,
+                            std::weak_ptr<CfgConditional>, std::shared_ptr<CfgReturn>>;
+
+struct CfgBasic {
+    Block statements;
+    CfgRef next;
+};
+
+struct CfgConditional {
+    Block statements;
+    Expression guard;
+    CfgRef tru;
+    CfgRef fals;
+};
+
+struct CfgReturn {
+    Block statements;
+};
+
 struct Function {
 	std::string id;
     std::vector<Declaration> parameters;
     Type return_type;
     std::vector<Declaration> declarations;
     std::vector<Statement> body;
+    Environment local_env;
+    CfgRef cfg;
 };
 
 using Functions = std::unordered_map<std::string, Function>;
@@ -164,6 +191,7 @@ struct Program {
     TypeDeclarations types;
     std::vector<Declaration> declarations;
     Functions functions;
+    Environment top_env;
 };
 
 Program parse_program(MiniParser::ProgramContext *ctx);

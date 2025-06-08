@@ -257,7 +257,7 @@ Block block(const std::vector<MiniParser::StatementContext *> &stmts_p) {
 }
 
 void flatten_block(Block &acc, Block &&source) {
-    for (auto it = source.begin(); it != source.end(); /* ++it handled by erase */) {
+    for (auto it = source.begin(); it != source.end(); it = source.erase(it)) {
         Statement& current_stmt = *it;
 
         if (Conditional *cond = std::get_if<Conditional>(&current_stmt)) {
@@ -290,7 +290,6 @@ void flatten_block(Block &acc, Block &&source) {
         } else {
             acc.emplace_back(std::move(current_stmt));
         }
-        it = source.erase(it);
     }
 }
 

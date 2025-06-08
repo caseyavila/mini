@@ -2,6 +2,7 @@
 #include "MiniParser.h"
 
 #include "ast.h"
+#include "cfg.h"
 #include "type_checker.h"
 #include "error_listener.h"
 
@@ -28,6 +29,8 @@ int main(int argc, char *argv[]) {
 
 	Program prog = parse_program(parser.program());
 	check_program(prog);
+	write_cfg(prog);
+	print_cfgs(prog);
 
     MiniFile.close();
 
