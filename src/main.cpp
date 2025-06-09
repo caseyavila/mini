@@ -29,8 +29,8 @@ int main(int argc, char *argv[]) {
 
 	Program prog = parse_program(parser.program());
 	check_program(prog);
-	write_cfg(prog);
-	print_cfgs(prog);
+	cfg::Program cfg_prog = write_cfg(std::move(prog));
+	print_cfgs(cfg_prog);
 
     MiniFile.close();
 

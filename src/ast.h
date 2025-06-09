@@ -150,50 +150,26 @@ struct Loop {
 
 /* Program */
 
-namespace cfg {
-    /* want to put cfg stuff in other header but can't foward declare type aliases */
-    struct Basic;
-    struct Conditional;
-    struct Return;
-
-    using Cfg = std::variant<Basic, Conditional, Return>;
-    using Ref = std::variant<std::shared_ptr<Basic>, std::shared_ptr<Conditional>,
-                             std::weak_ptr<Conditional>, std::shared_ptr<Return>>;
-
-    struct Basic {
-        Block statements;
-        Ref next;
-    };
-
-    struct Conditional {
-        Block statements;
-        Expression guard;
-        Ref tru;
-        Ref fals;
-    };
-
-    struct Return {
-        Block statements;
-    };
-}
-
-struct Function {
+template <typename T>
+struct GenericFunction {
 	std::string id;
     std::vector<Declaration> parameters;
     Type return_type;
     std::vector<Declaration> declarations;
-    std::vector<Statement> body;
+    T body;
     Environment local_env;
-    cfg::Ref cfg;
 };
 
-using Functions = std::unordered_map<std::string, Function>;
-
-struct Program {
+template <typename T>
+struct GenericProgram {
     TypeDeclarations types;
     std::vector<Declaration> declarations;
-    Functions functions;
+    T functions;
     Environment top_env;
 };
+
+using Function = GenericFunction<Block>;
+using Functions = std::unordered_map<std::string, Function>;
+using Program = GenericProgram<Functions>;
 
 Program parse_program(MiniParser::ProgramContext *ctx);

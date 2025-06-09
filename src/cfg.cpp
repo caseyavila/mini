@@ -102,14 +102,14 @@ struct CfgRefOwnerLess {
 };
 
 /* for testing */
-void print_cfgs(const Program &prog) {
+void print_cfgs(const cfg::Program &prog) {
     for (auto &[_, func] : prog.functions) {
         std::cout << "\nfunction " << func.id << ":\n";
         std::map<cfg::Ref, int, CfgRefOwnerLess> seen;
         std::vector<std::pair<cfg::Ref, int>> stack;
         int block_id = 0;
 
-        cfg::Ref curr = func.cfg;
+        cfg::Ref curr = func.body;
         int curr_indent = 0;
         stack.emplace_back(curr, curr_indent);
 
@@ -146,12 +146,27 @@ void print_cfgs(const Program &prog) {
     }
 }
 
-void write_cfg_function(Function &func) {
-    func.cfg = cfg_block(func.body.begin(), func.body.end(), std::make_shared<cfg::Return>());
+cfg::Function write_cfg_function(Function &&func) {
+    return cfg::Function {
+        std::move(func.id),
+        std::move(func.parameters),
+        std::move(func.return_type),
+        std::move(func.declarations),
+        cfg_block(func.body.begin(), func.body.end(), std::make_shared<cfg::Return>()),
+        std::move(func.local_env)
+    };
 }
 
-void write_cfg(Program &prog) {
-    for (auto &[_, func] : prog.functions) {
-        write_cfg_function(func);
+cfg::Program write_cfg(Program &&prog) {
+    cfg::Functions funcs;
+    for (auto &[id, func] : prog.functions) {
+        funcs.emplace(id, write_cfg_function(std::move(func)));
     }
+
+    return cfg::Program {
+        std::move(prog.types),
+        std::move(prog.declarations),
+        std::move(funcs),
+        std::move(prog.top_env)
+    };
 }
