@@ -60,6 +60,4 @@ namespace cfg {
 }
 
 cfg::Program cfg_program(Program &&prog);
-void print_cfg_program(const cfg::Program &prog);
-std::vector<cfg::Ref> cfg_flatten(const cfg::Ref &ref);
-cfg::RefMap cfg_enumerate(const cfg::Program &prog);
+cfg::RefMap cfg_enumerate(const cfg::Program &prog, bool print);

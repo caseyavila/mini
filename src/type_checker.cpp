@@ -433,7 +433,13 @@ void check_functions(Program &prog, const Environment &tenv) {
         std::exit(1);
     }
 
-    for (auto &[_, func] : prog.functions) {
+
+    std::unordered_set<std::string> runtime = {"malloc", "free", "print", "printl", "readnum"};
+    for (auto &[id, func] : prog.functions) {
+        if (runtime.contains(id)) {
+            std::cerr << "Function '" << id << "' conflicts with mini runtime\n";
+            std::exit(1);
+        }
         check_function(prog, tenv, func);
     }
 }

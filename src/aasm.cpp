@@ -1,19 +1,29 @@
 #include "aasm.h"
 #include "ast.h"
 #include "cfg.h"
+#include "type_checker.h"
 #include <variant>
 
-aasm::Operand aasm_expr(Expression &expr, aasm::Block &insns, int &var);
+/*
+    honestly should have made prog/func globally accessible
+    instead of tyring to pass it around everywhere for type info
 
-aasm::Operand aasm_unary(Unary &unary, aasm::Block &insns, int &var) {
-    aasm::Operand opd = aasm_expr(*unary.expr, insns, var);
-    aasm::Operand target = aasm::Var { var++ };
+    i give up...
+*/
+
+aasm::Operand aasm_expr(cfg::Program &prog, cfg::Function &func, Expression &expr, aasm::Block &insns, int &var);
+
+aasm::Operand aasm_unary(cfg::Program &prog, cfg::Function &func, Unary &unary, aasm::Block &insns, int &var) {
+    aasm::Operand opd = aasm_expr(prog, func, *unary.expr, insns, var);
+    aasm::Operand target = aasm::Operand { aasm::Var { var++ } };
     aasm::Ins ins;
 
     if (std::holds_alternative<Negative>(unary.op)) {
-        ins = aasm::Binary { aasm::Sub {}, target, aasm::Imm { 0 }, opd };
+        target.type = Int {};
+        ins = aasm::Binary { aasm::Sub {}, target, aasm::Operand { aasm::Imm { 0 }, Int {} }, opd };
     } else if (std::holds_alternative<Not>(unary.op)) {
-        ins = aasm::Binary { aasm::Xor {}, target, aasm::ImmB { true }, opd };
+        target.type = Bool {};
+        ins = aasm::Binary { aasm::Xor {}, target, aasm::Operand { aasm::ImmB { true }, Int {} }, opd };
     } else {
         std::cerr << "Unhandled AASM unary expression. Quitting...\n";
         std::exit(1);
@@ -23,35 +33,47 @@ aasm::Operand aasm_unary(Unary &unary, aasm::Block &insns, int &var) {
     return target;
 }
 
-aasm::Operand aasm_binary(Binary &binary, aasm::Block &insns, int &var) {
-    aasm::Operand opd_l = aasm_expr(*binary.left, insns, var);
-    aasm::Operand opd_r = aasm_expr(*binary.right, insns, var);
-    aasm::Operand target = aasm::Var { var++ };
+aasm::Operand aasm_binary(cfg::Program &prog, cfg::Function &func, Binary &binary, aasm::Block &insns, int &var) {
+    aasm::Operand opd_l = aasm_expr(prog, func, *binary.left, insns, var);
+    aasm::Operand opd_r = aasm_expr(prog, func, *binary.right, insns, var);
+    aasm::Operand target = aasm::Operand { aasm::Var { var++ } };
     aasm::Ins ins;
 
     if (std::holds_alternative<Add>(binary.op)) {
+        target.type = Int {};
         ins = aasm::Binary { aasm::Add {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Sub>(binary.op)) {
+        target.type = Int {};
         ins = aasm::Binary { aasm::Sub {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Mul>(binary.op)) {
+        target.type = Int {};
         ins = aasm::Binary { aasm::Mul {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Div>(binary.op)) {
+        target.type = Int {};
         ins = aasm::Binary { aasm::Div {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<And>(binary.op)) {
+        target.type = Bool {};
         ins = aasm::Binary { aasm::And {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Or>(binary.op)) {
+        target.type = Bool {};
         ins = aasm::Binary { aasm::Or {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Grt>(binary.op)) {
+        target.type = Bool {};
         ins = aasm::Binary { aasm::Gt {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Geq>(binary.op)) {
+        target.type = Bool {};
         ins = aasm::Binary { aasm::Ge {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Lst>(binary.op)) {
+        target.type = Bool {};
         ins = aasm::Binary { aasm::Lt {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Leq>(binary.op)) {
+        target.type = Bool {};
         ins = aasm::Binary { aasm::Le {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Eq>(binary.op)) {
+        target.type = Bool {};
         ins = aasm::Binary { aasm::Eq {}, target, opd_l, opd_r };
     } else if (std::holds_alternative<Neq>(binary.op)) {
+        target.type = Bool {};
         ins = aasm::Binary { aasm::Ne {}, target, opd_l, opd_r };
     } else {
         std::cerr << "Unhandled AASM binary expression. Quitting...\n";
@@ -62,16 +84,17 @@ aasm::Operand aasm_binary(Binary &binary, aasm::Block &insns, int &var) {
     return target;
 }
 
-aasm::Operand aasm_invocation(Invocation &inv, bool returns, aasm::Block &insns, int &var) {
+aasm::Operand aasm_invocation(cfg::Program &prog, cfg::Function &func, Invocation &inv, bool returns, aasm::Block &insns, int &var) {
     std::vector<aasm::Operand> args;
 
     for (auto &arg : inv.arguments) {
-        args.emplace_back(aasm_expr(arg, insns, var));
+        args.emplace_back(aasm_expr(prog, func, arg, insns, var));
     }
 
     aasm::Ins ins;
     if (returns) {
-        aasm::Operand target = aasm::Var { var++ };
+        Type ret_t = prog.functions.at(inv.id).return_type;
+        aasm::Operand target = aasm::Operand { aasm::Var { var++ }, ret_t };
         ins = aasm::Call { target, inv.id, args };
         insns.emplace_back(ins);
         return target;
@@ -82,22 +105,30 @@ aasm::Operand aasm_invocation(Invocation &inv, bool returns, aasm::Block &insns,
     }
 }
 
-aasm::Operand aasm_dot(Dot &dot, aasm::Block &insns, int &var) {
-    aasm::Operand left = aasm_expr(*dot.expr, insns, var);
-    aasm::Operand gep = aasm::Var { var++ };
-    aasm::Operand target = aasm::Var { var++ };
+aasm::Operand aasm_dot(cfg::Program &prog, cfg::Function &func, Dot &dot, aasm::Block &insns, int &var) {
+    aasm::Operand left = aasm_expr(prog, func, *dot.expr, insns, var);
+    Struct *struct_t = std::get_if<Struct>(&left.type);
 
-    insns.emplace_back(aasm::Gep { gep, left, dot.id });
-    insns.emplace_back(aasm::Load { target, gep });
+    int index = 0;
+    while (prog.types.at(struct_t->id)[index].id != dot.id) {
+        index++;
+    }
+    Type member_t = prog.types.at(struct_t->id)[index].type;
+
+    aasm::Operand gep_op = aasm::Operand { aasm::Var { var++ }, member_t };
+    aasm::Operand target = aasm::Operand { aasm::Var { var++ }, member_t };
+
+    insns.emplace_back(aasm::Gep { gep_op, left, aasm::Operand { aasm::Imm { index }, Int {} } });
+    insns.emplace_back(aasm::Load { target, gep_op });
 
     return target;
 }
 
-aasm::Operand aasm_index(Index &idx, aasm::Block &insns, int &var) {
-    aasm::Operand left = aasm_expr(*idx.left, insns, var);
-    aasm::Operand idx_op = aasm_expr(*idx.index, insns, var);
-    aasm::Operand gep = aasm::Var { var++ };
-    aasm::Operand target = aasm::Var { var++ };
+aasm::Operand aasm_index(cfg::Program &prog, cfg::Function &func, Index &idx, aasm::Block &insns, int &var) {
+    aasm::Operand left = aasm_expr(prog, func, *idx.left, insns, var);
+    aasm::Operand idx_op = aasm_expr(prog, func, *idx.index, insns, var);
+    aasm::Operand gep = aasm::Operand { aasm::Var { var++ }, Int {} };
+    aasm::Operand target = aasm::Operand { aasm::Var { var++ }, Int {} };
 
     insns.emplace_back(aasm::Gep { gep, left, idx_op });
     insns.emplace_back(aasm::Load { target, gep });
@@ -105,33 +136,37 @@ aasm::Operand aasm_index(Index &idx, aasm::Block &insns, int &var) {
     return target;
 }
 
-aasm::Operand aasm_expr(Expression &expr, aasm::Block &insns, int &var) {
+aasm::Operand aasm_expr(cfg::Program &prog, cfg::Function &func, Expression &expr, aasm::Block &insns, int &var) {
     if (auto *id = std::get_if<std::string>(&expr)) {
-        return aasm::Id { *id };
+        Type type = check_env(func.local_env, prog.top_env, *id);
+        aasm::Operand id_op = aasm::Operand { aasm::Id { *id }, type };
+        aasm::Operand load = aasm::Operand { aasm::Var { var++ }, type };
+        insns.emplace_back(aasm::Load { load, id_op });
+        return load;
     } else if (auto *i = std::get_if<int>(&expr)) {
-        return aasm::Imm { *i };
+        return aasm::Operand { aasm::Imm { *i }, Int {} };
     } else if (std::holds_alternative<True>(expr)) {
-        return aasm::ImmB { true };
+        return aasm::Operand { aasm::ImmB { true }, Bool {} };
     } else if (std::holds_alternative<False>(expr)) {
-        return aasm::ImmB { false };
+        return aasm::Operand { aasm::ImmB { false }, Bool {} };
     } else if (std::holds_alternative<Null>(expr)) {
-        return aasm::Null {};
+        return aasm::Operand { aasm::Null {}, Null {} };
     } else if (auto *un = std::get_if<Unary>(&expr)) {
-        return aasm_unary(*un, insns, var);
+        return aasm_unary(prog, func, *un, insns, var);
     } else if (auto *bin = std::get_if<Binary>(&expr)) {
-        return aasm_binary(*bin, insns, var);
+        return aasm_binary(prog, func, *bin, insns, var);
     } else if (auto *inv = std::get_if<Invocation>(&expr)) {
-        return aasm_invocation(*inv, true, insns, var);
+        return aasm_invocation(prog, func, *inv, true, insns, var);
     } else if (auto *dot = std::get_if<Dot>(&expr)) {
-        return aasm_dot(*dot, insns, var);
+        return aasm_dot(prog, func, *dot, insns, var);
     } else if (auto *idx = std::get_if<Index>(&expr)) {
-        return aasm_index(*idx, insns, var);
+        return aasm_index(prog, func, *idx, insns, var);
     } else if (auto *ns = std::get_if<NewStruct>(&expr)) {
-        aasm::Operand target = aasm::Var { var++ };
+        aasm::Operand target = aasm::Operand { aasm::Var { var++ }, Struct { ns->id } };
         insns.emplace_back(aasm::NewS { target, ns->id });
         return target;
     } else if (auto *na = std::get_if<NewArray>(&expr)) {
-        aasm::Operand target = aasm::Var { var++ };
+        aasm::Operand target = aasm::Operand { aasm::Var { var++ }, Array {} };
         insns.emplace_back(aasm::NewA { target, na->size });
         return target;
     } else {
@@ -140,22 +175,30 @@ aasm::Operand aasm_expr(Expression &expr, aasm::Block &insns, int &var) {
     }
 }
 
-aasm::Operand aasm_lvalue(LValue &lval, aasm::Block &insns, int &var) {
+aasm::Operand aasm_lvalue(cfg::Program &prog, cfg::Function &func, LValue &lval, aasm::Block &insns, int &var) {
     if (auto *id = std::get_if<std::string>(&lval)) {
-        return aasm::Id { *id };
+        return aasm::Operand { aasm::Id { *id }, check_env(func.local_env, prog.top_env, *id) };
     } else if (auto *dot = std::get_if<LValueDot>(&lval)) {
-        aasm::Operand lval_op = aasm_lvalue(*dot->lvalue, insns, var);
-        aasm::Operand load = aasm::Var { var++ };
-        aasm::Operand gep = aasm::Var { var++ };
+        aasm::Operand lval_op = aasm_lvalue(prog, func, *dot->lvalue, insns, var);
+        aasm::Operand load = aasm::Operand { aasm::Var { var++ }, lval_op.type };
+        Struct *struct_t = std::get_if<Struct>(&lval_op.type);
+
+        int index = 0;
+        while (prog.types.at(struct_t->id)[index].id != dot->id) {
+            index++;
+        }
+        Type member_t = prog.types.at(struct_t->id)[index].type;
+
+        aasm::Operand gep = aasm::Operand { aasm::Var { var++ }, member_t };
 
         insns.emplace_back(aasm::Load { load, lval_op });
-        insns.emplace_back(aasm::Gep { gep, load, dot->id });
+        insns.emplace_back(aasm::Gep { gep, load, aasm::Operand { aasm::Imm { index }, Int {} } });
         return gep;
     } else if (auto *idx = std::get_if<LValueIndex>(&lval)) {
-        aasm::Operand lval_op = aasm_lvalue(*idx->lvalue, insns, var);
-        aasm::Operand idx_op = aasm_expr(idx->index, insns, var);
-        aasm::Operand load = aasm::Var { var++ };
-        aasm::Operand gep = aasm::Var { var++ };
+        aasm::Operand lval_op = aasm_lvalue(prog, func, *idx->lvalue, insns, var);
+        aasm::Operand idx_op = aasm_expr(prog, func, idx->index, insns, var);
+        aasm::Operand load = aasm::Operand { aasm::Var { var++ }, lval_op.type };
+        aasm::Operand gep = aasm::Operand { aasm::Var { var++ }, Int {} };
 
         insns.emplace_back(aasm::Load { load, lval_op });
         insns.emplace_back(aasm::Gep { gep, load, idx_op });
@@ -166,35 +209,35 @@ aasm::Operand aasm_lvalue(LValue &lval, aasm::Block &insns, int &var) {
     }
 }
 
-void aasm_block(Block &stmts, aasm::Block &insns, int &var) {
+void aasm_block(cfg::Program &prog, cfg::Function &func, Block &stmts, aasm::Block &insns, int &var) {
     for (auto &stmt : stmts) {
         if (auto *p = std::get_if<Print>(&stmt)) {
-            aasm::Operand arg = aasm_expr(p->expr, insns, var);
+            aasm::Operand arg = aasm_expr(prog, func, p->expr, insns, var);
             insns.emplace_back(aasm::Call { std::nullopt, "print", { arg } });
         } else if (auto *pln = std::get_if<PrintLn>(&stmt)) {
-            aasm::Operand arg = aasm_expr(pln->expr, insns, var);
+            aasm::Operand arg = aasm_expr(prog, func, pln->expr, insns, var);
             insns.emplace_back(aasm::Call { std::nullopt, "println", { arg } });
         } else if (auto *del = std::get_if<Delete>(&stmt)) {
-            aasm::Operand arg = aasm_expr(del->expr, insns, var);
-            insns.emplace_back(aasm::Call { std::nullopt, "delete", { arg } });
+            aasm::Operand arg = aasm_expr(prog, func, del->expr, insns, var);
+            insns.emplace_back(aasm::Free { arg } );
         } else if (auto *ret = std::get_if<Return>(&stmt)) {
             if (ret->expr.has_value()) {
-                aasm::Operand arg = aasm_expr(ret->expr.value(), insns, var);
+                aasm::Operand arg = aasm_expr(prog, func, ret->expr.value(), insns, var);
                 insns.emplace_back(aasm::Ret { arg });
             } else {
                 insns.emplace_back(aasm::Ret { std::nullopt });
             }
         } else if (auto *inv = std::get_if<Invocation>(&stmt)) {
-            aasm_invocation(*inv, false, insns, var);
+            aasm_invocation(prog, func, *inv, false, insns, var);
         } else if (auto *ass = std::get_if<Assignment>(&stmt)) {
             aasm::Operand rvalue;
             if (auto *expr = std::get_if<Expression>(&ass->source)) {
-                rvalue = aasm_expr(*expr, insns, var);
+                rvalue = aasm_expr(prog, func, *expr, insns, var);
             } else {
-                rvalue = aasm::Var { var++ };
+                rvalue = aasm::Operand { aasm::Var { var++ }, Int {} };
                 insns.emplace_back(aasm::Call { rvalue, "readnum", {} });
             }
-            insns.emplace_back(aasm::Store { rvalue, aasm_lvalue(ass->lvalue, insns, var) });
+            insns.emplace_back(aasm::Store { rvalue, aasm_lvalue(prog, func, ass->lvalue, insns, var) });
         } else {
             std::cerr << "Unhandled AASM statement. Quitting...\n";
             std::exit(1);
@@ -202,36 +245,35 @@ void aasm_block(Block &stmts, aasm::Block &insns, int &var) {
     }
 }
 
-void aasm_function(cfg::Function &func) {
-    cfg::RefMap seen;
+void aasm_function(cfg::Program &prog, cfg::Function &func) {
+    std::set<cfg::Ref, cfg::RefOwnerLess> seen;
     std::vector<cfg::Ref> stack;
-    int block_id = 0;
-    int var = 0;
+    int var = 1;
 
     cfg::Ref curr = func.body;
     stack.emplace_back(curr);
 
     while (!stack.empty()) {
         if (!seen.contains(curr)) {
-            seen.emplace(curr, block_id);
+            seen.emplace(curr);
 
             if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&curr)) {
-                aasm_block(ret->get()->statements, ret->get()->instructions, var);
+                aasm_block(prog, func, ret->get()->statements, ret->get()->instructions, var);
             } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&curr)) {
-                aasm_block(basic->get()->statements, basic->get()->instructions, var);
+                aasm_block(prog, func, basic->get()->statements, basic->get()->instructions, var);
                 stack.emplace_back(basic->get()->next);
+                basic->get()->instructions.emplace_back(aasm::Jump { basic->get()->next });
             } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&curr)) {
-                aasm_block(cond->get()->statements, cond->get()->instructions, var);
+                aasm_block(prog, func, cond->get()->statements, cond->get()->instructions, var);
                 stack.emplace_back(cond->get()->fals);
                 stack.emplace_back(cond->get()->tru);
 
-                aasm::Operand guard = aasm_expr(cond->get()->guard, cond->get()->instructions, var);
+                aasm::Operand guard = aasm_expr(prog, func, cond->get()->guard, cond->get()->instructions, var);
                 cond->get()->instructions.emplace_back(aasm::Br { guard, cond->get()->tru, cond->get()->fals });
             } else if (std::holds_alternative<std::weak_ptr<cfg::Conditional>>(curr)) {
                 std::cout << "Actually got a weak CFG ref, please examine...\n";
                 std::exit(1);
             }
-            block_id++;
         }
 
         curr = stack.back();
@@ -241,6 +283,6 @@ void aasm_function(cfg::Function &func) {
 
 void aasm_program(cfg::Program &prog) {
     for (auto &[id, func] : prog.functions) {
-        aasm_function(func);
+        aasm_function(prog, func);
     }
 }

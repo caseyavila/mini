@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 	check_program(prog);
 
 	cfg::Program cfg_prog = cfg_program(std::move(prog));
-	/* print_cfg_program(cfg_prog); */
+	/* cfg_enumerate(cfg_prog, true); */
 
 	aasm_program(cfg_prog);
 	print_aasm_program(cfg_prog);

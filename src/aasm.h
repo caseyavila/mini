@@ -16,7 +16,12 @@ namespace aasm {
     struct PhId { std::string id; };
     struct Null {};
 
-    using Operand = std::variant<Imm, ImmB, Var, Id, PhId, Null>;
+    using Value = std::variant<Imm, ImmB, Var, Id, PhId, Null>;
+
+    struct Operand {
+        Value value;
+        Type type;
+    };
 
     struct Load { Operand target; Operand ptr; };
     struct Store { Operand value; Operand ptr; };
@@ -55,7 +60,6 @@ namespace aasm {
         std::optional<Operand> value;
     };
 
-    struct Jump { int block; };
     struct Free { Operand target; };
 
     struct NewS {
@@ -71,9 +75,10 @@ namespace aasm {
     struct Gep {
         Operand target;
         Operand value;
-        std::variant<std::string, Operand> index;
+        Operand index;
     };
 
+    struct Jump;
     struct Br;
 
     using Ins = std::variant<Load, Store, Binary, Call, Ret, Br, Jump, Free, NewS, NewA, Gep>;
@@ -83,6 +88,8 @@ namespace aasm {
 #include "cfg.h"
 
 namespace aasm {
+    struct Jump { cfg::Ref block; };
+
     struct Br {
         Operand guard;
         cfg::Ref tru;

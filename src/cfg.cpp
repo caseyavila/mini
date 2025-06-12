@@ -80,6 +80,7 @@ cfg::Ref cfg_block(Block::iterator begin, Block::iterator end, const cfg::Ref &f
 
             return cfg_ref(std::move(cond));
         } else if (std::holds_alternative<Return>(current_stmt)) {
+            cfg_stmts.emplace_back(std::move(*it));
             return cfg_ref(cfg::Return { std::move(cfg_stmts), {} });
         } else {
             cfg_stmts.emplace_back(std::move(*it));
@@ -93,13 +94,15 @@ cfg::Ref cfg_block(Block::iterator begin, Block::iterator end, const cfg::Ref &f
     return cfg_ref(cfg::Basic { std::move(cfg_stmts), {}, follow });
 }
 
-/* for testing */
-void print_cfg_program(const cfg::Program &prog) {
+cfg::RefMap cfg_enumerate(const cfg::Program &prog, bool print) {
+    if (!print) std::cout.setstate(std::ios_base::failbit);
+
+    cfg::RefMap seen;
+    int block_id = 0;
+
     for (auto &[_, func] : prog.functions) {
         std::cout << "\nfunction " << func.id << ":\n";
-        cfg::RefMap seen;
         std::vector<std::pair<cfg::Ref, int>> stack;
-        int block_id = 0;
 
         cfg::Ref curr = func.body;
         int curr_indent = 0;
@@ -136,6 +139,9 @@ void print_cfg_program(const cfg::Program &prog) {
             stack.pop_back();
         }
     }
+
+    if (!print) std::cout.clear();
+    return seen;
 }
 
 cfg::Function cfg_function(Function &&func) {
@@ -161,38 +167,4 @@ cfg::Program cfg_program(Program &&prog) {
         std::move(funcs),
         std::move(prog.top_env)
     };
-}
-
-cfg::RefMap cfg_enumerate(const cfg::Program &prog) {
-    int block_id = 0;
-    cfg::RefMap seen;
-
-    for (auto &[_, func] : prog.functions) {
-        std::vector<cfg::Ref> stack;
-
-        cfg::Ref curr = func.body;
-        stack.emplace_back(curr);
-
-        while (!stack.empty()) {
-            if (!seen.contains(curr)) {
-                seen.emplace(curr, block_id);
-
-                if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&curr)) {
-                    stack.emplace_back(basic->get()->next);
-                } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&curr)) {
-                    stack.emplace_back(cond->get()->fals);
-                    stack.emplace_back(cond->get()->tru);
-                } else if (std::holds_alternative<std::weak_ptr<cfg::Conditional>>(curr)) {
-                    std::cout << "Actually got a weak CFG ref, please examine...\n";
-                    std::exit(1);
-                }
-                block_id++;
-            }
-
-            curr = stack.back();
-            stack.pop_back();
-        }
-    }
-
-    return seen;
 }
