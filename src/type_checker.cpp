@@ -53,7 +53,7 @@ Environment environment(const std::vector<Declaration> &decls) {
     return env;
 }
 
-Type inspect_env(const Environment &lenv, const Environment &tenv, const std::string &id) {
+Type check_env(const Environment &lenv, const Environment &tenv, const std::string &id) {
     auto it = lenv.find(id);
     if (it != lenv.end()) {
         return it->second;
@@ -237,7 +237,7 @@ Type check_expr(const Program &prog, const Environment &tenv, const Function &fu
         }
         return s_t;
     } else if (auto *id = std::get_if<std::string>(&expr)) {
-        return inspect_env(lenv, tenv, *id);
+        return check_env(lenv, tenv, *id);
     } else if (auto *u = std::get_if<Unary>(&expr)) {
         return check_unary(prog, tenv, func, lenv, *u);
     } else if (auto *b = std::get_if<Binary>(&expr)) {
@@ -272,7 +272,7 @@ Type check_lvalue(const Program &prog, const Environment &tenv, const Function &
     auto recurse = [&](const LValue &l) { return check_lvalue(prog, tenv, func, lenv, l); };
 
     if (auto *id = std::get_if<std::string>(&lvalue)) {
-        return inspect_env(lenv, tenv, *id);
+        return check_env(lenv, tenv, *id);
     } else if (auto *lv_i = std::get_if<LValueIndex>(&lvalue)) {
         if (!std::holds_alternative<Array>(recurse(*lv_i->lvalue))) {
             std::cerr << "Cannot index " << recurse(*lv_i->lvalue) << "\n";

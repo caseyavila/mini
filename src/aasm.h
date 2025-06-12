@@ -45,7 +45,7 @@ namespace aasm {
         Operand right;
     };
 
-    struct Inv {
+    struct Call {
         std::optional<Operand> target;
         std::string id;
         std::vector<Operand> arguments;
@@ -53,12 +53,6 @@ namespace aasm {
 
     struct Ret {
         std::optional<Operand> value;
-    };
-
-    struct Br {
-        Operand guard;
-        int tru;
-        int fals;
     };
 
     struct Jump { int block; };
@@ -80,12 +74,20 @@ namespace aasm {
         std::variant<std::string, Operand> index;
     };
 
-    using Ins = std::variant<Load, Store, Binary, Inv, Ret, Br, Jump, Free, NewS, NewA, Gep>;
+    struct Br;
 
+    using Ins = std::variant<Load, Store, Binary, Call, Ret, Br, Jump, Free, NewS, NewA, Gep>;
     using Block = std::vector<Ins>;
-    using Function = GenericFunction<std::unordered_map<int, std::vector<Ins>>>;
-    using Functions = std::unordered_map<std::string, Function>;
-    using Program = GenericProgram<Functions>;
 }
 
-aasm::Program write_aasm(Program &&prog);
+#include "cfg.h"
+
+namespace aasm {
+    struct Br {
+        Operand guard;
+        cfg::Ref tru;
+        cfg::Ref fals;
+    };
+}
+
+void aasm_program(cfg::Program &prog);

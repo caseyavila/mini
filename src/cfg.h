@@ -16,13 +16,38 @@ namespace cfg {
     using Ref = std::variant<std::shared_ptr<Basic>, std::shared_ptr<Conditional>,
                              std::weak_ptr<Conditional>, std::shared_ptr<Return>>;
 
+    /* plzzzzzzzz work */
+    struct RefOwnerLess {
+        bool operator()(const cfg::Ref& lhs, const cfg::Ref& rhs) const {
+            return std::visit(
+                [&](auto&& arg1, auto&& arg2) -> bool {
+                    return std::owner_less<>{}(arg1, arg2);
+                },
+                lhs,
+                rhs
+            );
+        }
+    };
+
+    using Function = GenericFunction<Ref>;
+    using Functions = std::unordered_map<std::string, Function>;
+    using Program = GenericProgram<Functions>;
+    using RefMap = std::map<Ref, int, RefOwnerLess>;
+}
+
+#include "aasm.h"
+
+namespace cfg {
     struct Basic {
         Block statements;
+        aasm::Block instructions;
         Ref next;
     };
 
+
     struct Conditional {
         Block statements;
+        aasm::Block instructions;
         Expression guard;
         Ref tru;
         Ref fals;
@@ -30,12 +55,11 @@ namespace cfg {
 
     struct Return {
         Block statements;
+        aasm::Block instructions;
     };
-
-    using Function = GenericFunction<Ref>;
-    using Functions = std::unordered_map<std::string, Function>;
-    using Program = GenericProgram<Functions>;
 }
 
-cfg::Program write_cfg(Program &&prog);
-void print_cfgs(const cfg::Program &prog);
+cfg::Program cfg_program(Program &&prog);
+void print_cfg_program(const cfg::Program &prog);
+std::vector<cfg::Ref> cfg_flatten(const cfg::Ref &ref);
+cfg::RefMap cfg_enumerate(const cfg::Program &prog);

@@ -1,6 +1,8 @@
 #include "MiniLexer.h"
 #include "MiniParser.h"
 
+#include "aasm.h"
+#include "print_aasm.h"
 #include "ast.h"
 #include "cfg.h"
 #include "type_checker.h"
@@ -28,9 +30,15 @@ int main(int argc, char *argv[]) {
     parser.addErrorListener(&errorListener);
 
 	Program prog = parse_program(parser.program());
+
+	/* typecheck */
 	check_program(prog);
-	cfg::Program cfg_prog = write_cfg(std::move(prog));
-	print_cfgs(cfg_prog);
+
+	cfg::Program cfg_prog = cfg_program(std::move(prog));
+	/* print_cfg_program(cfg_prog); */
+
+	aasm_program(cfg_prog);
+	print_aasm_program(cfg_prog);
 
     MiniFile.close();
 
