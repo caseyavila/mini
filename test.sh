@@ -8,3 +8,4 @@ for d in tests/* ; do
 done
 
 rm output
+rm a.out

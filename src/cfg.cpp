@@ -1,3 +1,4 @@
+#include <functional>
 #include <memory>
 #include <variant>
 
@@ -94,54 +95,48 @@ cfg::Ref cfg_block(Block::iterator begin, Block::iterator end, const cfg::Ref &f
     return cfg_ref(cfg::Basic { std::move(cfg_stmts), {}, follow });
 }
 
-cfg::RefMap cfg_enumerate(const cfg::Program &prog, bool print) {
-    if (!print) std::cout.setstate(std::ios_base::failbit);
+void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda) {
+    std::set<cfg::Ref, cfg::RefOwnerLess> seen;
+    std::vector<cfg::Ref> stack;
+    cfg::Ref curr = ref;
 
-    cfg::RefMap seen;
+    stack.emplace_back(curr);
+
+    while (!stack.empty()) {
+        if (!seen.contains(curr)) {
+            seen.emplace(curr);
+
+            lambda(curr);
+
+            if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&curr)) {
+                stack.emplace_back(basic->get()->next);
+            } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&curr)) {
+                stack.emplace_back(cond->get()->fals);
+                stack.emplace_back(cond->get()->tru);
+            } else if (std::holds_alternative<std::weak_ptr<cfg::Conditional>>(curr)) {
+                std::cout << "Actually got a weak CFG ref, please examine...\n";
+                std::exit(1);
+            }
+        }
+
+        curr = stack.back();
+        stack.pop_back();
+    }
+}
+
+cfg::RefMap cfg_enumerate(const cfg::Program &prog) {
+    cfg::RefMap map;
     int block_id = 0;
 
+    auto lambda = [&](cfg::Ref &ref) {
+        map.emplace(ref, block_id++);
+    };
+
     for (auto &[_, func] : prog.functions) {
-        std::cout << "\nfunction " << func.id << ":\n";
-        std::vector<std::pair<cfg::Ref, int>> stack;
-
-        cfg::Ref curr = func.body;
-        int curr_indent = 0;
-        stack.emplace_back(curr, curr_indent);
-
-        while (!stack.empty()) {
-            for (int i = 0; i < curr_indent; i++) {
-                std::cout << " ";
-            }
-
-            if (seen.contains(curr)) {
-                std::cout << "-- " << seen[curr] << " --\n";
-            } else {
-                seen.emplace(curr, block_id);
-
-                if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&curr)) {
-                    std::cout << block_id << ": return (" << ret->get()->statements.size() << ")\n";
-                } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&curr)) {
-                    std::cout << block_id << ": basic (" << basic->get()->statements.size() << ")\n";
-                    stack.emplace_back(basic->get()->next, curr_indent + 1);
-                } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&curr)) {
-                    std::cout << block_id << ": conditional (" << cond->get()->statements.size() << ")\n";
-                    stack.emplace_back(cond->get()->fals, curr_indent + 1);
-                    stack.emplace_back(cond->get()->tru, curr_indent + 1);
-                } else if (std::holds_alternative<std::weak_ptr<cfg::Conditional>>(curr)) {
-                    std::cout << "Actually got a weak CFG ref, please examine...\n";
-                    std::exit(1);
-                }
-                block_id++;
-            }
-
-            curr = stack.back().first;
-            curr_indent = stack.back().second;
-            stack.pop_back();
-        }
+        cfg_traverse(func.body, lambda);
     }
 
-    if (!print) std::cout.clear();
-    return seen;
+    return map;
 }
 
 cfg::Function cfg_function(Function &&func) {

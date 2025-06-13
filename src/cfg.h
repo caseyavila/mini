@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <variant>
@@ -60,4 +61,5 @@ namespace cfg {
 }
 
 cfg::Program cfg_program(Program &&prog);
-cfg::RefMap cfg_enumerate(const cfg::Program &prog, bool print);
+void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda);
+cfg::RefMap cfg_enumerate(const cfg::Program &prog);

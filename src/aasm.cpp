@@ -2,6 +2,7 @@
 #include "ast.h"
 #include "cfg.h"
 #include "type_checker.h"
+#include <functional>
 #include <variant>
 
 /*
@@ -247,39 +248,22 @@ void aasm_block(cfg::Program &prog, cfg::Function &func, Block &stmts, aasm::Blo
 }
 
 void aasm_function(cfg::Program &prog, cfg::Function &func) {
-    std::set<cfg::Ref, cfg::RefOwnerLess> seen;
-    std::vector<cfg::Ref> stack;
     int var = 1;
 
-    cfg::Ref curr = func.body;
-    stack.emplace_back(curr);
-
-    while (!stack.empty()) {
-        if (!seen.contains(curr)) {
-            seen.emplace(curr);
-
-            if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&curr)) {
-                aasm_block(prog, func, ret->get()->statements, ret->get()->instructions, var);
-            } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&curr)) {
-                aasm_block(prog, func, basic->get()->statements, basic->get()->instructions, var);
-                stack.emplace_back(basic->get()->next);
-                basic->get()->instructions.emplace_back(aasm::Jump { basic->get()->next });
-            } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&curr)) {
-                aasm_block(prog, func, cond->get()->statements, cond->get()->instructions, var);
-                stack.emplace_back(cond->get()->fals);
-                stack.emplace_back(cond->get()->tru);
-
-                aasm::Operand guard = aasm_expr(prog, func, cond->get()->guard, cond->get()->instructions, var);
-                cond->get()->instructions.emplace_back(aasm::Br { guard, cond->get()->tru, cond->get()->fals });
-            } else if (std::holds_alternative<std::weak_ptr<cfg::Conditional>>(curr)) {
-                std::cout << "Actually got a weak CFG ref, please examine...\n";
-                std::exit(1);
-            }
+    auto aasm_ref = [&](cfg::Ref &ref) {
+        if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
+            aasm_block(prog, func, ret->get()->statements, ret->get()->instructions, var);
+        } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
+            aasm_block(prog, func, basic->get()->statements, basic->get()->instructions, var);
+            basic->get()->instructions.emplace_back(aasm::Jump { basic->get()->next });
+        } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
+            aasm_block(prog, func, cond->get()->statements, cond->get()->instructions, var);
+            aasm::Operand guard = aasm_expr(prog, func, cond->get()->guard, cond->get()->instructions, var);
+            cond->get()->instructions.emplace_back(aasm::Br { guard, cond->get()->tru, cond->get()->fals });
         }
+    };
 
-        curr = stack.back();
-        stack.pop_back();
-    }
+    cfg_traverse(func.body, aasm_ref);
 }
 
 void aasm_program(cfg::Program &prog) {

@@ -184,36 +184,19 @@ void print_aasm_insns(const cfg::Program &prog, const cfg::Function &func,
 }
 
 void print_aasm_cfg(const cfg::Program &prog, const cfg::Function &func, const cfg::RefMap &ref_map) {
-    std::set<cfg::Ref, cfg::RefOwnerLess> seen;
-    std::vector<cfg::Ref> stack;
+    auto print_aasm_ref = [&](cfg::Ref &ref) {
+        std::cout << "\nl" << ref_map.at(ref) << ":\n";
 
-    cfg::Ref curr = func.body;
-    stack.emplace_back(curr);
-
-    while (!stack.empty()) {
-        if (!seen.contains(curr)) {
-            seen.emplace(curr);
-
-            std::cout << "\nl" << ref_map.at(curr) << ":\n";
-
-            if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&curr)) {
-                print_aasm_insns(prog, func, ref_map, ret->get()->instructions);
-            } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&curr)) {
-                print_aasm_insns(prog, func, ref_map, basic->get()->instructions);
-                stack.emplace_back(basic->get()->next);
-            } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&curr)) {
-                print_aasm_insns(prog, func, ref_map, cond->get()->instructions);
-                stack.emplace_back(cond->get()->fals);
-                stack.emplace_back(cond->get()->tru);
-            } else if (std::holds_alternative<std::weak_ptr<cfg::Conditional>>(curr)) {
-                std::cout << "Actually got a weak CFG ref, please examine...\n";
-                std::exit(1);
-            }
+        if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
+            print_aasm_insns(prog, func, ref_map, ret->get()->instructions);
+        } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
+            print_aasm_insns(prog, func, ref_map, basic->get()->instructions);
+        } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
+            print_aasm_insns(prog, func, ref_map, cond->get()->instructions);
         }
+    };
 
-        curr = stack.back();
-        stack.pop_back();
-    }
+    cfg_traverse(func.body, print_aasm_ref);
 }
 
 void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, const cfg::RefMap &ref_map) {
@@ -248,7 +231,7 @@ void print_aasm_program(const cfg::Program &prog) {
     print_aasm_decls(prog.declarations);
     std::cout << "\n";
 
-    cfg::RefMap ref_map = cfg_enumerate(prog, false);
+    cfg::RefMap ref_map = cfg_enumerate(prog);
     for (auto &[_, func] : prog.functions) {
         print_aasm_function(prog, func, ref_map);
         std::cout << "\n";
