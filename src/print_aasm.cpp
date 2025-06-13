@@ -189,16 +189,12 @@ void print_aasm_cfg(const cfg::Program &prog, const cfg::Function &func, const c
 
     cfg::Ref curr = func.body;
     stack.emplace_back(curr);
-    bool first = true;
 
     while (!stack.empty()) {
         if (!seen.contains(curr)) {
             seen.emplace(curr);
 
-            if (!first) {
-                std::cout << "\nl" << ref_map.at(curr) << ":\n";
-            }
-            first = false;
+            std::cout << "\nl" << ref_map.at(curr) << ":\n";
 
             if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&curr)) {
                 print_aasm_insns(prog, func, ref_map, ret->get()->instructions);
@@ -237,6 +233,8 @@ void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, co
     for (auto &decl : func.declarations) {
         std::cout << "%" << decl.id << " = alloca " << aasm_type(decl.type) << "\n";
     }
+
+    std::cout << "br label %l" << ref_map.at(func.body) << "\n";
 
     print_aasm_cfg(prog, func, ref_map);
 

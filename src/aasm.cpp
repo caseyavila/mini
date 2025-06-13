@@ -23,7 +23,7 @@ aasm::Operand aasm_unary(cfg::Program &prog, cfg::Function &func, Unary &unary, 
         ins = aasm::Binary { aasm::Sub {}, target, aasm::Operand { aasm::Imm { 0 }, Int {} }, opd };
     } else if (std::holds_alternative<Not>(unary.op)) {
         target.type = Bool {};
-        ins = aasm::Binary { aasm::Xor {}, target, aasm::Operand { aasm::ImmB { true }, Int {} }, opd };
+        ins = aasm::Binary { aasm::Xor {}, target, aasm::Operand { aasm::ImmB { true }, Bool {} }, opd };
     } else {
         std::cerr << "Unhandled AASM unary expression. Quitting...\n";
         std::exit(1);
@@ -99,6 +99,7 @@ aasm::Operand aasm_invocation(cfg::Program &prog, cfg::Function &func, Invocatio
         insns.emplace_back(ins);
         return target;
     } else {
+        var++; /* because llvm said so */
         ins = aasm::Call { std::nullopt, inv.id, args };
         insns.emplace_back(ins);
         return aasm::Operand {};
