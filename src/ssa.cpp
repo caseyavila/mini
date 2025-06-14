@@ -35,7 +35,7 @@ EditBlocks edit_blocks(const cfg::Function &func) {
         }
     };
 
-    cfg_traverse(func.body, edit_ref);
+    cfg_traverse(func.entry_ref, edit_ref);
 
     return result;
 }
@@ -237,7 +237,7 @@ void place_phi_block(std::string id, cfg::Function &func, cfg::Ref &ref, std::ve
     }
 
     /* entry phi */
-    if (cfg_equals(ref, func.body)) {
+    if (cfg_equals(ref, func.entry_ref)) {
         phi.bindings.emplace(ref_weaken(ref), aasm::Operand { aasm::Id { id }, func.local_env.at(id) });
     }
 
@@ -319,7 +319,7 @@ void rename_insns(std::vector<aasm::Ins> &insns,
         } else if (auto *gep = std::get_if<aasm::Gep>(&insn)) {
             new_insns.emplace_back(aasm::Gep { gep->target, lookup(gep->value), lookup(gep->index) });
         } else if (auto *free = std::get_if<aasm::Free>(&insn)) {
-            new_insns.emplace_back(aasm::Free { lookup(free->target) });
+            new_insns.emplace_back(aasm::Free { lookup(free->value) });
         } else if (auto *br = std::get_if<aasm::Br>(&insn)) {
             new_insns.emplace_back(aasm::Br { lookup(br->guard), br->tru, br->fals });
         } else if (auto *call = std::get_if<aasm::Call>(&insn)) {
@@ -397,10 +397,10 @@ void rename_cfg(const cfg::Ref &ref, RefToRefs &tree, RefToRefs &succs,
 void ssa_function(cfg::Program &prog, cfg::Function &func) {
     EditBlocks edits = edit_blocks(func);
 
-    auto [preds, succs] = preds_succs(func.body);
-    RefToRefs doms = dominators(func.body, preds);
-    RefToRefs idom = imm_dom(func.body, preds, doms);
-    RefToRefs fronts = frontiers(func.body, preds, idom);
+    auto [preds, succs] = preds_succs(func.entry_ref);
+    RefToRefs doms = dominators(func.entry_ref, preds);
+    RefToRefs idom = imm_dom(func.entry_ref, preds, doms);
+    RefToRefs fronts = frontiers(func.entry_ref, preds, idom);
     RefToRefs tree = dom_tree(idom);
 
     place_phis(func, edits, fronts, preds);
@@ -410,7 +410,7 @@ void ssa_function(cfg::Program &prog, cfg::Function &func) {
         stack[decl.id] = { aasm::Operand { aasm::Id { decl.id }, decl.type } };
     }
 
-    rename_cfg(func.body, tree, succs, stack);
+    rename_cfg(func.entry_ref, tree, succs, stack);
 }
 
 void ssa_program(cfg::Program &prog) {

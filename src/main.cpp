@@ -2,6 +2,7 @@
 #include "MiniParser.h"
 
 #include "aasm.h"
+#include "dead_code.h"
 #include "print_aasm.h"
 #include "ast.h"
 #include "cfg.h"
@@ -38,6 +39,7 @@ int main(int argc, char *argv[]) {
 
     ErrorListener errorListener;
     parser.addErrorListener(&errorListener);
+    lexer.addErrorListener(&errorListener);
 
     /* generate AST */
 	Program prog = parse_program(parser.program());
@@ -71,6 +73,7 @@ int main(int argc, char *argv[]) {
 	//std::remove(ll_name.c_str());
 
 	//ssa_program(cfg_prog);
+	dead_code_elim(cfg_prog);
 	//print_aasm_program(cfg_prog, true);
 
     return 0;

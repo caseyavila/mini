@@ -34,7 +34,15 @@ namespace cfg {
         }
     };
 
-    using Function = GenericFunction<Ref>;
+    struct Function {
+	std::string id;
+        std::vector<Declaration> parameters;
+        Type return_type;
+        std::vector<Declaration> declarations;
+        Ref entry_ref;
+        Ref ret_ref;
+        Environment local_env;
+    };
     using Functions = std::unordered_map<std::string, Function>;
     using Program = GenericProgram<Functions>;
     using RefMap = std::map<Ref, int, RefOwnerLess>;
@@ -66,6 +74,7 @@ namespace cfg {
 
 cfg::Program cfg_program(Program &&prog);
 void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda);
+std::vector<aasm::Ins> &cfg_instructions(const cfg::Ref &ref);
 bool cfg_equals(const cfg::Ref &ref1, const cfg::Ref &ref2);
 const cfg::RefMap cfg_enumerate(const cfg::Program &prog);
 const cfg::WeakRef ref_weaken(const cfg::Ref &ref);

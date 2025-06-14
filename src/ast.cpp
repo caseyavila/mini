@@ -389,6 +389,9 @@ Function function(MiniParser::FunctionContext *ctx) {
     std::vector<Declaration> params = declarations(ctx->parameters());
     Type return_t = type_from_ctx(ctx->returnType());
     std::vector<Declaration> decls = multi_declarations(ctx->declarations());
+    if (!std::holds_alternative<Void>(return_t)) {
+        decls.emplace_back(Declaration { return_t , "_return" });
+    }
     Block flat_blk;
     flatten_block(flat_blk, block(ctx->statementList()->statement()));
 

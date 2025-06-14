@@ -150,7 +150,7 @@ void print_aasm_insns(const cfg::Program &prog, const cfg::Function &func,
         } else if (auto *na = std::get_if<aasm::NewA>(&ins)) {
             std::cout << p_op(na->target) << " = call ptr @malloc(i64 " << na->size * 8 << ")\n";
         } else if (auto *free = std::get_if<aasm::Free>(&ins)) {
-            std::cout << "call void @free(ptr " << p_op(free->target) << ")\n";
+            std::cout << "call void @free(ptr " << p_op(free->value) << ")\n";
         } else if (auto *call = std::get_if<aasm::Call>(&ins)) {
             if (call->target.has_value()) {
                 std::cout << p_op(call->target.value()) << " = ";
@@ -206,7 +206,7 @@ void print_aasm_cfg(const cfg::Program &prog, const cfg::Function &func, const c
         }
     };
 
-    cfg_traverse(func.body, print_aasm_ref);
+    cfg_traverse(func.entry_ref, print_aasm_ref);
 }
 
 void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, const cfg::RefMap &ref_map, bool ssa) {
@@ -232,7 +232,7 @@ void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, co
         }
     }
 
-    std::cout << "br label %l" << ref_map.at(func.body) << "\n";
+    std::cout << "br label %l" << ref_map.at(func.entry_ref) << "\n";
 
     print_aasm_cfg(prog, func, ref_map);
 

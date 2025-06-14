@@ -80,7 +80,7 @@ namespace aasm {
         std::optional<Operand> value;
     };
 
-    struct Free { Operand target; };
+    struct Free { Operand value; };
 
     struct NewS {
         Operand target;
@@ -121,6 +121,51 @@ namespace aasm {
         Operand target;
         std::string id;
         std::map<cfg::WeakRef, Operand, cfg::RefOwnerLess> bindings;
+    };
+}
+
+/* hashing for Operand */
+namespace std {
+    template<> struct hash<aasm::Imm> {
+        size_t operator()(const aasm::Imm& imm) const {
+            return hash<int>()(imm.val);
+        }
+    };
+
+    template<> struct hash<aasm::ImmB> {
+        size_t operator()(const aasm::ImmB& immb) const {
+            return hash<bool>()(immb.val);
+        }
+    };
+
+    template<> struct hash<aasm::Var> {
+        size_t operator()(const aasm::Var& var) const {
+            return hash<int>()(var.id);
+        }
+    };
+
+    template<> struct hash<aasm::Id> {
+        size_t operator()(const aasm::Id& id) const {
+            return hash<string>()(id.id);
+        }
+    };
+
+    template<> struct hash<aasm::Glob> {
+        size_t operator()(const aasm::Glob& glob) const {
+            return hash<string>()(glob.id);
+        }
+    };
+
+    template<> struct hash<aasm::Null> {
+        size_t operator()(const aasm::Null&) const {
+            return 0;
+        }
+    };
+
+    template<> struct hash<aasm::Operand> {
+        size_t operator()(const aasm::Operand& op) const {
+            return hash<aasm::Value>()(op.value);
+        }
     };
 }
 

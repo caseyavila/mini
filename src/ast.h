@@ -150,13 +150,12 @@ struct Loop {
 
 /* Program */
 
-template <typename T>
-struct GenericFunction {
+struct Function {
 	std::string id;
     std::vector<Declaration> parameters;
     Type return_type;
     std::vector<Declaration> declarations;
-    T body;
+    Block body;
     Environment local_env;
 };
 
@@ -168,7 +167,6 @@ struct GenericProgram {
     Environment top_env;
 };
 
-using Function = GenericFunction<Block>;
 using Functions = std::unordered_map<std::string, Function>;
 using Program = GenericProgram<Functions>;
 

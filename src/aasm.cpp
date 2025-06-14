@@ -274,7 +274,7 @@ void aasm_function(cfg::Program &prog, cfg::Function &func) {
         }
     };
 
-    cfg_traverse(func.body, aasm_ref);
+    cfg_traverse(func.entry_ref, aasm_ref);
 }
 
 void aasm_program(cfg::Program &prog) {
