@@ -183,7 +183,7 @@ void print_aasm_insns(const cfg::Program &prog, const cfg::Function &func,
                 }
                 first = false;
 
-                std::cout << "[ " << p_op(op) << ", %l" << ref_map.at(pred) << " ]";
+                std::cout << "[ " << p_op(op) << ", %l" << ref_map.at(ref_strengthen(pred)) << " ]";
             }
             std::cout << "\n";
         } else {

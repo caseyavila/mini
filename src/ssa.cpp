@@ -9,8 +9,6 @@
 using EditBlocks = std::unordered_map<std::string, std::vector<cfg::Ref>>;
 using RefToRefs = std::map<cfg::Ref, std::set<cfg::Ref, cfg::RefOwnerLess>, cfg::RefOwnerLess>;
 
-cfg::RefMap refrefref;
-
 /* blocks that edit each variable */
 EditBlocks edit_blocks(const cfg::Function &func) {
     EditBlocks result;
@@ -235,12 +233,12 @@ void place_phi_block(std::string id, cfg::Function &func, cfg::Ref &ref, std::ve
 
     aasm::Phi phi = aasm::Phi { { aasm::Id { id + "." + std::to_string(idx) }, func.local_env.at(id) }, id, {} };
     for (auto &pred : preds[ref]) {
-        phi.bindings.emplace(pred, aasm::Operand { aasm::Id { id }, func.local_env.at(id) });
+        phi.bindings.emplace(ref_weaken(pred), aasm::Operand { aasm::Id { id }, func.local_env.at(id) });
     }
 
     /* entry phi */
     if (cfg_equals(ref, func.body)) {
-        phi.bindings.emplace(ref, aasm::Operand { aasm::Id { id }, func.local_env.at(id) });
+        phi.bindings.emplace(ref_weaken(ref), aasm::Operand { aasm::Id { id }, func.local_env.at(id) });
     }
 
     insns.insert(insns.begin(), phi);
@@ -350,9 +348,9 @@ void edit_phi(std::vector<aasm::Ins> &insns, const cfg::Ref &ref,
     int i = 0;
     while (i < insns.size()) {
         if (auto *phi = std::get_if<aasm::Phi>(&insns[i])) {
-            if (phi->bindings.contains(ref)) {
+            if (phi->bindings.contains(ref_weaken(ref))) {
                 if (stack.contains(phi_name(phi->id))) {
-                    phi->bindings.at(ref) = stack.at(phi_name(phi->id)).back();
+                    phi->bindings.at(ref_weaken(ref)) = stack.at(phi_name(phi->id)).back();
                     i++;
                 } else {
                     insns.erase(insns.begin() + i);
@@ -397,8 +395,6 @@ void rename_cfg(const cfg::Ref &ref, RefToRefs &tree, RefToRefs &succs,
 }
 
 void ssa_function(cfg::Program &prog, cfg::Function &func) {
-    refrefref = cfg_enumerate(prog);
-
     EditBlocks edits = edit_blocks(func);
 
     auto [preds, succs] = preds_succs(func.body);
@@ -411,7 +407,7 @@ void ssa_function(cfg::Program &prog, cfg::Function &func) {
 
     std::unordered_map<std::string, std::vector<aasm::Operand>> stack;
     for (auto &decl : func.parameters) {
-        stack[decl.id] = {aasm::Operand {aasm::Id {decl.id}, decl.type}};
+        stack[decl.id] = { aasm::Operand { aasm::Id { decl.id }, decl.type } };
     }
 
     rename_cfg(func.body, tree, succs, stack);

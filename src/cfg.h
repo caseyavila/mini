@@ -17,9 +17,13 @@ namespace cfg {
     using Ref = std::variant<std::shared_ptr<Basic>, std::shared_ptr<Conditional>,
                              std::weak_ptr<Conditional>, std::shared_ptr<Return>>;
 
+    using WeakRef = std::variant<std::weak_ptr<Basic>, std::weak_ptr<Conditional>,
+                                 std::weak_ptr<Return>>;
+
     /* plzzzzzzzz work */
     struct RefOwnerLess {
-        bool operator()(const cfg::Ref& lhs, const cfg::Ref& rhs) const {
+        template <typename T1, typename T2>
+        bool operator()(const T1& lhs, const T2& rhs) const {
             return std::visit(
                 [&](auto&& arg1, auto&& arg2) -> bool {
                     return std::owner_less<>{}(arg1, arg2);
@@ -63,4 +67,6 @@ namespace cfg {
 cfg::Program cfg_program(Program &&prog);
 void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda);
 bool cfg_equals(const cfg::Ref &ref1, const cfg::Ref &ref2);
-cfg::RefMap cfg_enumerate(const cfg::Program &prog);
+const cfg::RefMap cfg_enumerate(const cfg::Program &prog);
+const cfg::WeakRef ref_weaken(const cfg::Ref &ref);
+const cfg::Ref ref_strengthen(const cfg::WeakRef &ref);

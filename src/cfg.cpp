@@ -120,7 +120,7 @@ void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda) {
     }
 }
 
-cfg::RefMap cfg_enumerate(const cfg::Program &prog) {
+const cfg::RefMap cfg_enumerate(const cfg::Program &prog) {
     cfg::RefMap map;
     int block_id = 0;
 
@@ -163,4 +163,28 @@ cfg::Program cfg_program(Program &&prog) {
         std::move(funcs),
         std::move(prog.top_env)
     };
+}
+
+const cfg::WeakRef ref_weaken(const cfg::Ref &ref) {
+    if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
+        return *basic;
+    } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
+        return *cond;
+    } else if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
+        return *ret;
+    } else if (auto *wcond = std::get_if<std::weak_ptr<cfg::Conditional>>(&ref)) {
+        return *wcond;
+    }
+
+    std::cerr << "Unhandled ref weakening. Quitting...\n";
+    std::exit(1);
+}
+
+const cfg::Ref ref_strengthen(const cfg::WeakRef &ref) {
+    return std::visit(
+        [](auto&& weak_ptr) -> cfg::Ref {
+            return weak_ptr.lock();
+        },
+        ref
+    );
 }
