@@ -9,18 +9,38 @@
 #include "ast.h"
 
 namespace aasm {
-    struct Imm { int val; };
-    struct ImmB { bool val; };
-    struct Var { int id; };
-    struct Id { std::string id; };
-    struct PhId { std::string id; };
-    struct Null {};
+    struct Imm {
+        int val;
+        bool operator==(const Imm& other) const { return val == other.val; }
+    };
+    struct ImmB {
+        bool val;
+        bool operator==(const ImmB& other) const { return val == other.val; }
+    };
+    struct Var {
+        int id;
+        bool operator==(const Var& other) const { return id == other.id; }
+    };
+    struct Id {
+        std::string id;
+        bool operator==(const Id& other) const { return id == other.id; }
+    };
+    struct Glob {
+        std::string id;
+        bool operator==(const Glob& other) const { return id == other.id; }
+    };
+    struct Null {
+        bool operator==(const Null& other) const { return true; }
+    };
 
-    using Value = std::variant<Imm, ImmB, Var, Id, PhId, Null>;
+    using Value = std::variant<Imm, ImmB, Var, Id, Glob, Null>;
 
     struct Operand {
         Value value;
         Type type;
+        bool operator==(const Operand& other) const {
+              return value == other.value;
+        }
     };
 
     struct Load { Operand target; Operand ptr; };
@@ -80,8 +100,9 @@ namespace aasm {
 
     struct Jump;
     struct Br;
+    struct Phi;
 
-    using Ins = std::variant<Load, Store, Binary, Call, Ret, Br, Jump, Free, NewS, NewA, Gep>;
+    using Ins = std::variant<Load, Store, Binary, Call, Ret, Br, Jump, Free, NewS, NewA, Gep, Phi>;
     using Block = std::vector<Ins>;
 }
 
@@ -94,6 +115,12 @@ namespace aasm {
         Operand guard;
         cfg::Ref tru;
         cfg::Ref fals;
+    };
+
+    struct Phi {
+        Operand target;
+        std::string id;
+        std::map<cfg::Ref, Operand, cfg::RefOwnerLess> bindings;
     };
 }
 

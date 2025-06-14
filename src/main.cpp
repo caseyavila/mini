@@ -5,6 +5,7 @@
 #include "print_aasm.h"
 #include "ast.h"
 #include "cfg.h"
+#include "ssa.h"
 #include "type_checker.h"
 #include "error_listener.h"
 #include <cstdlib>
@@ -47,7 +48,6 @@ int main(int argc, char *argv[]) {
 
 	/* generate CFG */
 	cfg::Program cfg_prog = cfg_program(std::move(prog));
-	/* cfg_enumerate(cfg_prog, true); */
 
 	/* gerate AASM */
 	aasm_program(cfg_prog);
@@ -60,13 +60,18 @@ int main(int argc, char *argv[]) {
 	std::streambuf *stdout = std::cout.rdbuf();
 	std::cout.rdbuf(ll_file.rdbuf());
 
-	print_aasm_program(cfg_prog);
+	//print_aasm_program(cfg_prog, false);
+	ssa_program(cfg_prog);
+	print_aasm_program(cfg_prog, true);
 
 	std::cout.rdbuf(stdout);
 	ll_file.close();
 
 	std::system(("clang util.c " + ll_name).c_str());
 	//std::remove(ll_name.c_str());
+
+	//ssa_program(cfg_prog);
+	//print_aasm_program(cfg_prog, true);
 
     return 0;
 }

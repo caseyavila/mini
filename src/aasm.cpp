@@ -141,7 +141,12 @@ aasm::Operand aasm_index(cfg::Program &prog, cfg::Function &func, Index &idx, aa
 aasm::Operand aasm_expr(cfg::Program &prog, cfg::Function &func, Expression &expr, aasm::Block &insns, int &var) {
     if (auto *id = std::get_if<std::string>(&expr)) {
         Type type = check_env(func.local_env, prog.top_env, *id);
-        aasm::Operand id_op = aasm::Operand { aasm::Id { *id }, type };
+        aasm::Operand id_op;
+        if (func.local_env.contains(*id)) {
+            id_op = aasm::Operand { aasm::Id { *id }, type };
+        } else {
+            id_op = aasm::Operand { aasm::Glob { *id }, type };
+        }
         aasm::Operand load = aasm::Operand { aasm::Var { var++ }, type };
         insns.emplace_back(aasm::Load { load, id_op });
         return load;
@@ -179,7 +184,13 @@ aasm::Operand aasm_expr(cfg::Program &prog, cfg::Function &func, Expression &exp
 
 aasm::Operand aasm_lvalue(cfg::Program &prog, cfg::Function &func, LValue &lval, aasm::Block &insns, int &var) {
     if (auto *id = std::get_if<std::string>(&lval)) {
-        return aasm::Operand { aasm::Id { *id }, check_env(func.local_env, prog.top_env, *id) };
+        aasm::Value val;
+        if (func.local_env.contains(*id)) {
+            val = aasm::Id { *id };
+        } else {
+            val = aasm::Glob { *id };
+        }
+        return aasm::Operand { val, check_env(func.local_env, prog.top_env, *id) };
     } else if (auto *dot = std::get_if<LValueDot>(&lval)) {
         aasm::Operand lval_op = aasm_lvalue(prog, func, *dot->lvalue, insns, var);
         aasm::Operand load = aasm::Operand { aasm::Var { var++ }, lval_op.type };
@@ -248,7 +259,7 @@ void aasm_block(cfg::Program &prog, cfg::Function &func, Block &stmts, aasm::Blo
 }
 
 void aasm_function(cfg::Program &prog, cfg::Function &func) {
-    int var = 1;
+    int var = func.parameters.size() + 1;
 
     auto aasm_ref = [&](cfg::Ref &ref) {
         if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
@@ -267,7 +278,7 @@ void aasm_function(cfg::Program &prog, cfg::Function &func) {
 }
 
 void aasm_program(cfg::Program &prog) {
-    for (auto &[id, func] : prog.functions) {
+    for (auto &[_, func] : prog.functions) {
         aasm_function(prog, func);
     }
 }

@@ -52,15 +52,11 @@ cfg::Ref cfg_block(Block::iterator begin, Block::iterator end, const cfg::Ref &f
             cfg::Ref after_ref = cfg_block(it + 1, end, follow);
             cond->fals = after_ref;
 
-            if (cfg_stmts.size() == 0) {
-                return cond;
-            } else {
-                return cfg_ref(cfg::Basic {
-                    std::move(cfg_stmts),
-                    {},
-                    cond
-                });
-            }
+            return cfg_ref(cfg::Basic {
+                std::move(cfg_stmts),
+                {},
+                cond
+            });
         } else if (auto *cond_s = std::get_if<Conditional>(&current_stmt)) {
             cfg::Conditional cond = cfg::Conditional {
                 std::move(cfg_stmts),
@@ -137,6 +133,11 @@ cfg::RefMap cfg_enumerate(const cfg::Program &prog) {
     }
 
     return map;
+}
+
+bool cfg_equals(const cfg::Ref &ref1, const cfg::Ref &ref2) {
+    std::set<cfg::Ref, cfg::RefOwnerLess> set = {ref1};
+    return set.contains(ref2);
 }
 
 cfg::Function cfg_function(Function &&func) {

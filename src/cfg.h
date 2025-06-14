@@ -62,4 +62,5 @@ namespace cfg {
 
 cfg::Program cfg_program(Program &&prog);
 void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda);
+bool cfg_equals(const cfg::Ref &ref1, const cfg::Ref &ref2);
 cfg::RefMap cfg_enumerate(const cfg::Program &prog);

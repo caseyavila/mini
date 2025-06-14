@@ -60,11 +60,9 @@ std::string print_aasm_op(const cfg::Program &prog, const cfg::Function &func, c
     } else if (std::holds_alternative<aasm::Null>(op.value)) {
         return "null";
     } else if (auto *id = std::get_if<aasm::Id>(&op.value)) {
-        if (func.local_env.contains(id->id)) {
-            return "%" + id->id;
-        } else {
-            return "@" + id->id;
-        }
+        return "%" + id->id;
+    } else if (auto *glob = std::get_if<aasm::Glob>(&op.value)) {
+        return "@" + glob->id;
     }
 
     std::cerr << "Unhandled AASM operand. Quitting...\n";
@@ -107,7 +105,7 @@ void print_aasm_binary(const cfg::Program &prog, const cfg::Function &func, cons
 }
 
 void print_aasm_insns(const cfg::Program &prog, const cfg::Function &func,
-        const cfg::RefMap &ref_map, const std::vector<aasm::Ins> &insns) {
+        const cfg::RefMap &ref_map, const cfg::Ref &ref, const std::vector<aasm::Ins> &insns) {
 
     auto p_op = [&](const aasm::Operand &op) {
         return print_aasm_op(prog, func, op);
@@ -176,6 +174,18 @@ void print_aasm_insns(const cfg::Program &prog, const cfg::Function &func,
                 std::cout << aasm_type(arg.type) << " " << p_op(arg);
             }
             std::cout << ") \n";
+        } else if (auto *phi = std::get_if<aasm::Phi>(&ins)) {
+            std::cout << p_op(phi->target) << " = phi " << aasm_type(phi->target.type) << " ";
+            bool first = true;
+            for (auto &[pred, op] : phi->bindings) {
+                if (!first) {
+                    std::cout << ", ";
+                }
+                first = false;
+
+                std::cout << "[ " << p_op(op) << ", %l" << ref_map.at(pred) << " ]";
+            }
+            std::cout << "\n";
         } else {
             std::cerr << "Unhandled AASM instruction. Quitting...\n";
             std::exit(1);
@@ -188,33 +198,38 @@ void print_aasm_cfg(const cfg::Program &prog, const cfg::Function &func, const c
         std::cout << "\nl" << ref_map.at(ref) << ":\n";
 
         if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
-            print_aasm_insns(prog, func, ref_map, ret->get()->instructions);
+            print_aasm_insns(prog, func, ref_map, ref, ret->get()->instructions);
         } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
-            print_aasm_insns(prog, func, ref_map, basic->get()->instructions);
+            print_aasm_insns(prog, func, ref_map, ref, basic->get()->instructions);
         } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
-            print_aasm_insns(prog, func, ref_map, cond->get()->instructions);
+            print_aasm_insns(prog, func, ref_map, ref, cond->get()->instructions);
         }
     };
 
     cfg_traverse(func.body, print_aasm_ref);
 }
 
-void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, const cfg::RefMap &ref_map) {
+void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, const cfg::RefMap &ref_map, bool ssa) {
     std::cout << "define " << aasm_type(func.return_type) << " @"
               << func.id << "(";
     bool first = true;
+    int i = 0;
     for (auto &decl : func.parameters) {
         if (!first) std::cout << ", ";
         first = false;
-        std::cout << aasm_type(decl.type) << " %_" << decl.id;
+        std::cout << aasm_type(decl.type) << " %" << (ssa ? decl.id : std::to_string(i++));
     }
     std::cout << ") {\n";
-    for (auto &param : func.parameters) {
-        std::cout << "%" << param.id << " = alloca " << aasm_type(param.type) << "\n";
-        std::cout << "store " << aasm_type(param.type) << " %_" << param.id << ", ptr %"<< param.id << "\n";
-    }
-    for (auto &decl : func.declarations) {
-        std::cout << "%" << decl.id << " = alloca " << aasm_type(decl.type) << "\n";
+
+    if (!ssa) {
+        for (auto &decl : func.declarations) {
+            std::cout << "%" << decl.id << " = alloca " << aasm_type(decl.type) << "\n";
+        }
+        i = 0;
+        for (auto &param : func.parameters) {
+            std::cout << "%" << param.id << " = alloca " << aasm_type(param.type) << "\n";
+            std::cout << "store " << aasm_type(param.type) << " %" << i++ << ", ptr %" << param.id << "\n";
+        }
     }
 
     std::cout << "br label %l" << ref_map.at(func.body) << "\n";
@@ -224,7 +239,7 @@ void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, co
     std::cout << "}\n";
 }
 
-void print_aasm_program(const cfg::Program &prog) {
+void print_aasm_program(const cfg::Program &prog, bool ssa) {
     print_aasm_types(prog.types);
     std::cout << "\n";
 
@@ -233,7 +248,7 @@ void print_aasm_program(const cfg::Program &prog) {
 
     cfg::RefMap ref_map = cfg_enumerate(prog);
     for (auto &[_, func] : prog.functions) {
-        print_aasm_function(prog, func, ref_map);
+        print_aasm_function(prog, func, ref_map, ssa);
         std::cout << "\n";
     }
 
