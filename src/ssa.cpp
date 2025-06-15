@@ -1,3 +1,4 @@
+#include "ssa.h"
 #include "aasm.h"
 #include "ast.h"
 #include "cfg.h"
@@ -7,7 +8,6 @@
 #include <variant>
 
 using EditBlocks = std::unordered_map<std::string, std::vector<cfg::Ref>>;
-using RefToRefs = std::map<cfg::Ref, std::set<cfg::Ref, cfg::RefOwnerLess>, cfg::RefOwnerLess>;
 
 /* blocks that edit each variable */
 EditBlocks edit_blocks(const cfg::Function &func) {
@@ -118,10 +118,17 @@ bool equals(std::set<cfg::Ref, cfg::RefOwnerLess> &s1,
     return true;
 }
 
-RefToRefs dominators(const cfg::Ref &entry, RefToRefs &preds) {
+RefToRefs dominators(const cfg::Ref &entry, RefToRefs &preds, bool reorder) {
     RefToRefs doms;
 
-    std::vector<cfg::Ref> all_nodes = pre_order(entry);
+    std::vector<cfg::Ref> all_nodes;
+    if (reorder) {
+        all_nodes = pre_order(entry);
+    } else {
+        for (auto &[k, _] : preds) {
+            all_nodes.emplace_back(k);
+        }
+    }
     std::set<cfg::Ref, cfg::RefOwnerLess> all_nodes_set(all_nodes.begin(), all_nodes.end());
 
     /* dom = {every block -> all blocks} */
@@ -173,7 +180,7 @@ RefToRefs dom_tree(RefToRefs &doms) {
 RefToRefs imm_dom(const cfg::Ref &entry, RefToRefs &preds, RefToRefs &doms) {
     RefToRefs idom;
 
-    auto lambda = [&](cfg::Ref &ref) {
+    for (auto &[ref, _] : preds) {
         std::set<cfg::Ref, cfg::RefOwnerLess> s = doms[ref];
         s.erase(ref);
 
@@ -192,16 +199,15 @@ RefToRefs imm_dom(const cfg::Ref &entry, RefToRefs &preds, RefToRefs &doms) {
         }
 
         idom[ref] = s;
-    };
+    }
 
-    cfg_traverse(entry, lambda);
     return idom;
 }
 
 RefToRefs frontiers(const cfg::Ref &entry, RefToRefs &preds, RefToRefs &idom) {
     RefToRefs fronts;
 
-    auto lambda = [&](cfg::Ref &ref) {
+    for (auto &[ref, _] : preds) {
         fronts[ref];
 
         if (preds[ref].size() >= 2) {
@@ -214,9 +220,8 @@ RefToRefs frontiers(const cfg::Ref &entry, RefToRefs &preds, RefToRefs &idom) {
                 }
             }
         }
-    };
+    }
 
-    cfg_traverse(entry, lambda);
     return fronts;
 }
 
@@ -398,7 +403,7 @@ void ssa_function(cfg::Program &prog, cfg::Function &func) {
     EditBlocks edits = edit_blocks(func);
 
     auto [preds, succs] = preds_succs(func.entry_ref);
-    RefToRefs doms = dominators(func.entry_ref, preds);
+    RefToRefs doms = dominators(func.entry_ref, preds, true);
     RefToRefs idom = imm_dom(func.entry_ref, preds, doms);
     RefToRefs fronts = frontiers(func.entry_ref, preds, idom);
     RefToRefs tree = dom_tree(idom);
