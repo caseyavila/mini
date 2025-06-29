@@ -26,13 +26,7 @@ EditBlocks edit_blocks(const cfg::Function &func) {
             }
         };
 
-        if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
-            edit_insns(ret->get()->instructions);
-        } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
-            edit_insns(basic->get()->instructions);
-        } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
-            edit_insns(cond->get()->instructions);
-        }
+        edit_insns(cfg_instructions(ref));
     };
 
     cfg_traverse(func.entry_ref, edit_ref);
@@ -257,15 +251,7 @@ void place_phis(cfg::Function& func, EditBlocks &edits, RefToRefs &fronts, RefTo
             for (cfg::Ref block : fronts[edits[var][i]]) {
                 std::set<cfg::Ref, cfg::RefOwnerLess> container(edits[var].begin(), edits[var].end());
                 if (!container.contains(block)) {
-                    if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&block)) {
-                        place_phi_block(var, func, block, basic->get()->instructions, preds, idx);
-                    } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&block)) {
-                        place_phi_block(var, func, block, cond->get()->instructions, preds, idx);
-                    } else if (auto *wcond = std::get_if<std::weak_ptr<cfg::Conditional>>(&block)) {
-                        place_phi_block(var, func, block, wcond->lock().get()->instructions, preds, idx);
-                    } else if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&block)) {
-                        place_phi_block(var, func, block, ret->get()->instructions, preds, idx);
-                    }
+                    place_phi_block(var, func, block, cfg_instructions(block), preds, idx);
                     idx++;
                     edits[var].emplace_back(block);
                 }
@@ -372,26 +358,10 @@ void rename_cfg(const cfg::Ref &ref, RefToRefs &tree, RefToRefs &succs,
         std::unordered_map<std::string, std::vector<aasm::Operand>> stack) {
     std::unordered_map<int, aasm::Operand> vack;
 
-    if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
-        rename_insns(basic->get()->instructions, stack, vack);
-    } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
-        rename_insns(cond->get()->instructions, stack, vack);
-    } else if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
-        rename_insns(ret->get()->instructions, stack, vack);
-    } else if (auto *wcond = std::get_if<std::weak_ptr<cfg::Conditional>>(&ref)) {
-        rename_insns(wcond->lock().get()->instructions, stack, vack);
-    }
+    rename_insns(cfg_instructions(ref), stack, vack);
 
     for (auto &succ : succs[ref]) {
-        if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&succ)) {
-            edit_phi(basic->get()->instructions, ref, stack, vack);
-        } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&succ)) {
-            edit_phi(cond->get()->instructions, ref, stack, vack);
-        } else if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&succ)) {
-            edit_phi(ret->get()->instructions, ref, stack, vack);
-        } else if (auto *wcond = std::get_if<std::weak_ptr<cfg::Conditional>>(&succ)) {
-            edit_phi(wcond->lock().get()->instructions, ref, stack, vack);
-        }
+        edit_phi(cfg_instructions(succ), ref, stack, vack);
     }
 
     for (auto &domee : tree[ref]) {

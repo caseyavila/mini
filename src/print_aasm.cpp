@@ -196,14 +196,7 @@ void print_aasm_insns(const cfg::Program &prog, const cfg::Function &func,
 void print_aasm_cfg(const cfg::Program &prog, const cfg::Function &func, const cfg::RefMap &ref_map) {
     auto print_aasm_ref = [&](cfg::Ref &ref) {
         std::cout << "\nl" << ref_map.at(ref) << ":\n";
-
-        if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
-            print_aasm_insns(prog, func, ref_map, ref, ret->get()->instructions);
-        } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
-            print_aasm_insns(prog, func, ref_map, ref, basic->get()->instructions);
-        } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
-            print_aasm_insns(prog, func, ref_map, ref, cond->get()->instructions);
-        }
+        print_aasm_insns(prog, func, ref_map, ref, cfg_instructions(ref));
     };
 
     cfg_traverse(func.entry_ref, print_aasm_ref);
