@@ -10,7 +10,7 @@
 
 namespace aasm {
     struct Imm {
-        int val;
+        int64_t val;
         bool operator==(const Imm& other) const { return val == other.val; }
     };
     struct ImmB {
@@ -128,7 +128,7 @@ namespace aasm {
 namespace std {
     template<> struct hash<aasm::Imm> {
         size_t operator()(const aasm::Imm& imm) const {
-            return hash<int>()(imm.val);
+            return hash<int64_t>()(imm.val);
         }
     };
 
@@ -169,4 +169,5 @@ namespace std {
     };
 }
 
+void in_op_traverse(aasm::Ins &ins, std::function<void(aasm::Operand &)> lambda);
 void aasm_program(cfg::Program &prog);

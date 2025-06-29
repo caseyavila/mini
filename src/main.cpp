@@ -2,6 +2,7 @@
 #include "MiniParser.h"
 
 #include "aasm.h"
+#include "sscp.h"
 #include "unused_result.h"
 #include "print_aasm.h"
 #include "ast.h"
@@ -64,6 +65,7 @@ int main(int argc, char *argv[]) {
 
 	//print_aasm_program(cfg_prog, false);
 	ssa_program(cfg_prog);
+	sscp_program(cfg_prog);
 	unused_result(cfg_prog);
 	print_aasm_program(cfg_prog, true);
 
@@ -73,9 +75,7 @@ int main(int argc, char *argv[]) {
 	std::system(("clang util.c " + ll_name).c_str());
 	//std::remove(ll_name.c_str());
 
-	//ssa_program(cfg_prog);
-	//dead_code_elim(cfg_prog);
-	//print_aasm_program(cfg_prog, true);
+	//sscp_program(cfg_prog);
 
     return 0;
 }

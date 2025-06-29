@@ -57,7 +57,7 @@ Type type_from_ctx(TypeContext auto *ctx) {
     if (auto ret = dynamic_cast<MiniParser::ReturnTypeContext *>(ctx)) {
         if (auto real = dynamic_cast<MiniParser::ReturnTypeRealContext *>(ret)) {
             return type_from_ctx(real->type());
-        } else if (auto real = dynamic_cast<MiniParser::ReturnTypeVoidContext *>(ret)) {
+        } else if (dynamic_cast<MiniParser::ReturnTypeVoidContext *>(ret)) {
             return Void {};
         }
     }
