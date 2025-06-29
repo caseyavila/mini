@@ -48,38 +48,6 @@ DefMap definition_map(cfg::Function &func) {
     return def_map;
 }
 
-void in_op_traverse(aasm::Ins &ins, std::function<void(aasm::Operand &)> lambda) {
-    if (auto *load = std::get_if<aasm::Load>(&ins)) {
-        lambda(load->ptr);
-    } else if (auto *str = std::get_if<aasm::Store>(&ins)) {
-        lambda(str->ptr);
-        lambda(str->value);
-    } else if (auto *bin = std::get_if<aasm::Binary>(&ins)) {
-        lambda(bin->left);
-        lambda(bin->right);
-    } else if (auto *call = std::get_if<aasm::Call>(&ins)) {
-        for (auto &arg : call->arguments) {
-            lambda(arg);
-        }
-    } else if (auto *phi = std::get_if<aasm::Phi>(&ins)) {
-        std::vector<aasm::Operand> deps;
-        for (auto &[_, op] : phi->bindings) {
-            lambda(op);
-        }
-    } else if (auto *gep = std::get_if<aasm::Gep>(&ins)) {
-        lambda(gep->index);
-        lambda(gep->value);
-    } else if (auto *del = std::get_if<aasm::Free>(&ins)) {
-        lambda(del->value);
-    } else if (auto *ret = std::get_if<aasm::Ret>(&ins)) {
-        if (ret->value.has_value()) {
-            lambda(ret->value.value());
-        }
-    } else if (auto *br = std::get_if<aasm::Br>(&ins)) {
-        lambda(br->guard);
-    }
-}
-
 std::unordered_set<aasm::Operand> useful_ops(cfg::Function &func) {
     std::unordered_set<aasm::Operand> useful;
 

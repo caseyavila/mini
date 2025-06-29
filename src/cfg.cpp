@@ -173,7 +173,7 @@ cfg::Function cfg_function(Function &&func) {
         std::move(func.return_type),
         std::move(func.declarations),
         cfg_block(func.body.begin(), func.body.end(), {}, return_block),
-        return_block,
+        std::move(return_block),
         std::move(func.local_env)
     };
 }

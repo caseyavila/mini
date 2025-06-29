@@ -18,44 +18,17 @@ using ValMap = std::unordered_map<aasm::Operand, sscp::Value>;
 UseMap use_map(cfg::Function &func, DefMap &def_map) {
     UseMap u_map;
 
-    auto add = [&](aasm::Operand &op, cfg::Ref &ref, int idx) {
-        if (def_map.contains(op)) {
-            u_map[op].emplace_back(ref, idx);
-        }
-    };
-
     auto lambda = [&](cfg::Ref &ref) {
         int i = 0;
-        for (auto &ins : cfg_instructions(ref)) {
-            if (auto *load = std::get_if<aasm::Load>(&ins)) {
-                add(load->ptr, ref, i);
-            } else if (auto *str = std::get_if<aasm::Store>(&ins)) {
-                add(str->ptr, ref, i);
-                add(str->value, ref, i);
-            } else if (auto *bin = std::get_if<aasm::Binary>(&ins)) {
-                add(bin->left, ref, i);
-                add(bin->right, ref, i);
-            } else if (auto *call = std::get_if<aasm::Call>(&ins)) {
-                for (auto &arg : call->arguments) {
-                    add(arg, ref, i);
-                }
-            } else if (auto *phi = std::get_if<aasm::Phi>(&ins)) {
-                std::vector<aasm::Operand> deps;
-                for (auto &[_, op] : phi->bindings) {
-                    add(op, ref, i);
-                }
-            } else if (auto *gep = std::get_if<aasm::Gep>(&ins)) {
-                add(gep->index, ref, i);
-                add(gep->value, ref, i);
-            } else if (auto *del = std::get_if<aasm::Free>(&ins)) {
-                add(del->value, ref, i);
-            } else if (auto *ret = std::get_if<aasm::Ret>(&ins)) {
-                if (ret->value.has_value()) {
-                    add(ret->value.value(), ref, i);
-                }
-            } else if (auto *br = std::get_if<aasm::Br>(&ins)) {
-                add(br->guard, ref, i);
+
+        auto emplace_back = [&](aasm::Operand &op) {
+            if (def_map.contains(op)) {
+                u_map[op].emplace_back(ref, i);
             }
+        };
+
+        for (auto &ins : cfg_instructions(ref)) {
+            in_op_traverse(ins, emplace_back);
             i++;
         }
     };
