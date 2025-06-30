@@ -57,14 +57,14 @@ std::pair<RefToRefs, RefToRefs> preds_succs(const cfg::Ref &ref) {
         preds[ref];
         succs[ref];
 
-        if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
-            succs[ref].emplace(basic->get()->next);
-            preds[basic->get()->next].emplace(ref);
-        } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
-            succs[ref].emplace(cond->get()->tru);
-            succs[ref].emplace(cond->get()->fals);
-            preds[cond->get()->tru].emplace(ref);
-            preds[cond->get()->fals].emplace(ref);
+        if (auto basic = cfg_get_if<cfg::Basic>(&ref)) {
+            succs[ref].emplace(basic.get()->next);
+            preds[basic.get()->next].emplace(ref);
+        } else if (auto cond = cfg_get_if<cfg::Conditional>(&ref)) {
+            succs[ref].emplace(cond.get()->tru);
+            succs[ref].emplace(cond.get()->fals);
+            preds[cond.get()->tru].emplace(ref);
+            preds[cond.get()->fals].emplace(ref);
         }
     };
 

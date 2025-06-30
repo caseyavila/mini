@@ -14,11 +14,12 @@ namespace cfg {
     struct Return;
 
     using Cfg = std::variant<Basic, Conditional, Return>;
-    using Ref = std::variant<std::shared_ptr<Basic>, std::shared_ptr<Conditional>,
-                             std::weak_ptr<Conditional>, std::shared_ptr<Return>>;
-
-    using WeakRef = std::variant<std::weak_ptr<Basic>, std::weak_ptr<Conditional>,
-                                 std::weak_ptr<Return>>;
+    using Ref = std::variant<std::shared_ptr<Basic>,
+                             std::shared_ptr<Conditional>,
+                             std::shared_ptr<Return>,
+                             std::weak_ptr<Basic>,
+                             std::weak_ptr<Conditional>,
+                             std::weak_ptr<Return>>;
 
     /* plzzzzzzzz work */
     struct RefOwnerLess {
@@ -73,9 +74,11 @@ namespace cfg {
 }
 
 cfg::Program cfg_program(Program &&prog);
+cfg::Ref cfg_ref(cfg::Cfg &&cfg);
+template <typename T>
+std::shared_ptr<T> cfg_get_if(const cfg::Ref *ref);
 void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda);
 std::vector<aasm::Ins> &cfg_instructions(const cfg::Ref &ref);
 bool cfg_equals(const cfg::Ref &ref1, const cfg::Ref &ref2);
 const cfg::RefMap cfg_enumerate(const cfg::Program &prog);
-const cfg::WeakRef ref_weaken(const cfg::Ref &ref);
-const cfg::Ref ref_strengthen(const cfg::WeakRef &ref);
+const cfg::Ref ref_weaken(const cfg::Ref &ref);

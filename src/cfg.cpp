@@ -93,6 +93,17 @@ cfg::Ref cfg_block(Block::iterator begin, Block::iterator end, const cfg::Ref &f
     return cfg_ref(cfg::Basic { std::move(cfg_stmts), {}, follow });
 }
 
+template <typename T>
+std::shared_ptr<T> cfg_get_if(const cfg::Ref *ref) {
+    if (auto *weak = std::get_if<std::weak_ptr<T>>(ref)) {
+        return weak->lock();
+    } else if (auto *strong = std::get_if<std::shared_ptr<T>>(ref)) {
+        return *strong;
+    } else {
+        return nullptr;
+    }
+}
+
 void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda) {
     std::set<cfg::Ref, cfg::RefOwnerLess> seen;
     std::vector<cfg::Ref> stack;
@@ -106,14 +117,11 @@ void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda) {
 
             lambda(curr);
 
-            if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&curr)) {
-                stack.emplace_back(basic->get()->next);
-            } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&curr)) {
-                stack.emplace_back(cond->get()->fals);
-                stack.emplace_back(cond->get()->tru);
-            } else if (auto *wcond = std::get_if<std::weak_ptr<cfg::Conditional>>(&curr)) {
-                stack.emplace_back(wcond->lock().get()->fals);
-                stack.emplace_back(wcond->lock().get()->tru);
+            if (auto basic = cfg_get_if<cfg::Basic>(&curr)) {
+                stack.emplace_back(basic.get()->next);
+            } else if (auto cond = cfg_get_if<cfg::Conditional>(&curr)) {
+                stack.emplace_back(cond.get()->fals);
+                stack.emplace_back(cond.get()->tru);
             }
         }
 
@@ -123,15 +131,13 @@ void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda) {
 }
 
 std::vector<aasm::Ins> &cfg_instructions(const cfg::Ref &ref) {
-    if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
-        return basic->get()->instructions;
-    } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
-        return cond->get()->instructions;
-    } else if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
-        return ret->get()->instructions;
+    if (auto basic = cfg_get_if<cfg::Basic>(&ref)) {
+        return basic.get()->instructions;
+    } else if (auto cond = cfg_get_if<cfg::Conditional>(&ref)) {
+        return cond.get()->instructions;
     } else {
-        auto *wcond = std::get_if<std::weak_ptr<cfg::Conditional>>(&ref);
-        return wcond->lock().get()->instructions;
+        auto ret = cfg_get_if<cfg::Return>(&ref);
+        return ret.get()->instructions;
     }
 }
 
@@ -194,26 +200,14 @@ cfg::Program cfg_program(Program &&prog) {
     };
 }
 
-const cfg::WeakRef ref_weaken(const cfg::Ref &ref) {
+const cfg::Ref ref_weaken(const cfg::Ref &ref) {
     if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
-        return *basic;
+        return std::weak_ptr<cfg::Basic>(*basic);
     } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
-        return *cond;
+        return std::weak_ptr<cfg::Conditional>(*cond);
     } else if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
-        return *ret;
-    } else if (auto *wcond = std::get_if<std::weak_ptr<cfg::Conditional>>(&ref)) {
-        return *wcond;
+        return std::weak_ptr<cfg::Return>(*ret);
+    } else {
+        return ref;
     }
-
-    std::cerr << "Unhandled ref weakening. Quitting...\n";
-    std::exit(1);
-}
-
-const cfg::Ref ref_strengthen(const cfg::WeakRef &ref) {
-    return std::visit(
-        [](auto&& weak_ptr) -> cfg::Ref {
-            return weak_ptr.lock();
-        },
-        ref
-    );
 }

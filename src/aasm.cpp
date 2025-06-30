@@ -262,15 +262,15 @@ void aasm_function(cfg::Program &prog, cfg::Function &func) {
     int var = func.parameters.size() + 1;
 
     auto aasm_ref = [&](cfg::Ref &ref) {
-        if (auto *ret = std::get_if<std::shared_ptr<cfg::Return>>(&ref)) {
-            aasm_block(prog, func, ret->get()->statements, ret->get()->instructions, var);
-        } else if (auto *basic = std::get_if<std::shared_ptr<cfg::Basic>>(&ref)) {
-            aasm_block(prog, func, basic->get()->statements, basic->get()->instructions, var);
-            basic->get()->instructions.emplace_back(aasm::Jump { basic->get()->next });
-        } else if (auto *cond = std::get_if<std::shared_ptr<cfg::Conditional>>(&ref)) {
-            aasm_block(prog, func, cond->get()->statements, cond->get()->instructions, var);
-            aasm::Operand guard = aasm_expr(prog, func, cond->get()->guard, cond->get()->instructions, var);
-            cond->get()->instructions.emplace_back(aasm::Br { guard, cond->get()->tru, cond->get()->fals });
+        if (auto ret = cfg_get_if<cfg::Return>(&ref)) {
+            aasm_block(prog, func, ret.get()->statements, ret.get()->instructions, var);
+        } else if (auto basic = cfg_get_if<cfg::Basic>(&ref)) {
+            aasm_block(prog, func, basic.get()->statements, basic.get()->instructions, var);
+            basic.get()->instructions.emplace_back(aasm::Jump { basic.get()->next });
+        } else if (auto cond = cfg_get_if<cfg::Conditional>(&ref)) {
+            aasm_block(prog, func, cond.get()->statements, cond.get()->instructions, var);
+            aasm::Operand guard = aasm_expr(prog, func, cond.get()->guard, cond.get()->instructions, var);
+            cond.get()->instructions.emplace_back(aasm::Br { guard, cond.get()->tru, cond.get()->fals });
         }
     };
 

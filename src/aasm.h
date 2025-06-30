@@ -120,7 +120,7 @@ namespace aasm {
     struct Phi {
         Operand target;
         std::string id;
-        std::map<cfg::WeakRef, Operand, cfg::RefOwnerLess> bindings;
+        std::map<cfg::Ref, Operand, cfg::RefOwnerLess> bindings;
     };
 }
 
