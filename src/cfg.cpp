@@ -156,23 +156,25 @@ bool cfg_equals(const cfg::Ref &ref1, const cfg::Ref &ref2) {
 }
 
 cfg::Function cfg_function(Function &&func) {
-    auto return_block = std::make_shared<cfg::Return>(cfg::Return {
-        {},
-        {}
-    });
+    Block ret_stmts;
 
     if (std::holds_alternative<Void>(func.return_type)) {
-        return_block->statements.emplace_back(Return { std::nullopt });
+        ret_stmts.emplace_back(Return { std::nullopt });
     } else {
-        return_block->statements.emplace_back(Return { "_return" });
+        ret_stmts.emplace_back(Return { "_return" });
     }
+
+    auto return_block = cfg_ref(cfg::Return {
+        std::move(ret_stmts),
+        {}
+    });
 
     return cfg::Function {
         std::move(func.id),
         std::move(func.parameters),
         std::move(func.return_type),
         std::move(func.declarations),
-        cfg_block(func.body.begin(), func.body.end(), {}, return_block),
+        cfg_block(func.body.begin(), func.body.end(), {}, std::move(return_block)),
         std::move(return_block),
         std::move(func.local_env)
     };

@@ -9,6 +9,21 @@
 
 using EditBlocks = std::unordered_map<std::string, std::vector<cfg::Ref>>;
 
+//cfg::RefMap refmap;
+//void print_ref2ref(cfg::Program &prog, RefToRefs &ref2ref) {
+//    refmap = cfg_enumerate(prog);
+//
+//    std::cerr << "=======\n";
+//
+//    for (auto &[k_ref, v_refs] : ref2ref) {
+//        std::cerr<< refmap[k_ref] << ": ";
+//        for (auto &v_ref : v_refs) {
+//            std::cerr << refmap[v_ref] << ", ";
+//        }
+//        std::cerr<< "\n";
+//    }
+//}
+
 /* blocks that edit each variable */
 EditBlocks edit_blocks(const cfg::Function &func) {
     EditBlocks result;
@@ -235,11 +250,6 @@ void place_phi_block(std::string id, cfg::Function &func, cfg::Ref &ref, std::ve
         phi.bindings.emplace(ref_weaken(pred), aasm::Operand { aasm::Id { id }, func.local_env.at(id) });
     }
 
-    /* entry phi */
-    if (cfg_equals(ref, func.entry_ref)) {
-        phi.bindings.emplace(ref_weaken(ref), aasm::Operand { aasm::Id { id }, func.local_env.at(id) });
-    }
-
     insns.insert(insns.begin(), phi);
 }
 
@@ -247,13 +257,14 @@ void place_phis(cfg::Function& func, EditBlocks &edits, RefToRefs &fronts, RefTo
     for (auto &[var, _] : edits) {
         int i = 0;
         int idx = 0;
+        std::map<cfg::Ref, std::unordered_set<std::string>, cfg::RefOwnerLess> placed;
         while (i < edits[var].size()) {
             for (cfg::Ref block : fronts[edits[var][i]]) {
-                std::set<cfg::Ref, cfg::RefOwnerLess> container(edits[var].begin(), edits[var].end());
-                if (!container.contains(block)) {
+                if (!placed[block].contains(var)) {
                     place_phi_block(var, func, block, cfg_instructions(block), preds, idx);
                     idx++;
                     edits[var].emplace_back(block);
+                    placed[block].emplace(var);
                 }
             }
             i++;

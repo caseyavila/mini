@@ -215,12 +215,11 @@ void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, co
     std::cout << ") {\n";
 
     if (!ssa) {
-        for (auto &decl : func.declarations) {
-            std::cout << "%" << decl.id << " = alloca " << aasm_type(decl.type) << "\n";
+        for (auto &[id, type] : func.local_env) {
+            std::cout << "%" << id << " = alloca " << aasm_type(type) << "\n";
         }
         i = 0;
         for (auto &param : func.parameters) {
-            std::cout << "%" << param.id << " = alloca " << aasm_type(param.type) << "\n";
             std::cout << "store " << aasm_type(param.type) << " %" << i++ << ", ptr %" << param.id << "\n";
         }
     }

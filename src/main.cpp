@@ -3,6 +3,7 @@
 
 #include "aasm.h"
 #include "sscp.h"
+#include "tail_rec.h"
 #include "unused_result.h"
 #include "print_aasm.h"
 #include "ast.h"
@@ -52,7 +53,9 @@ int main(int argc, char *argv[]) {
 	/* generate CFG */
 	cfg::Program cfg_prog = cfg_program(std::move(prog));
 
-	/* gerate AASM */
+	tail_rec_program(cfg_prog);
+
+	/* generate AASM */
 	aasm_program(cfg_prog);
 
 	std::string exec_name = mini_name.substr(0, mini_name.size() - extension.size());
@@ -75,7 +78,7 @@ int main(int argc, char *argv[]) {
 	std::system(("clang util.c " + ll_name).c_str());
 	//std::remove(ll_name.c_str());
 
-	//sscp_program(cfg_prog);
+	//ssa_program(cfg_prog);
 
     return 0;
 }
