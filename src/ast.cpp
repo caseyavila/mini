@@ -400,6 +400,7 @@ Function function(MiniParser::FunctionContext *ctx) {
         std::move(params),
         std::move(return_t),
         std::move(decls),
+        {},
         std::move(flat_blk)
     };
 }

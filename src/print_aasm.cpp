@@ -50,7 +50,7 @@ void print_aasm_decls(const std::vector<Declaration> &decls) {
     }
 }
 
-std::string print_aasm_op(const cfg::Program &prog, const cfg::Function &func, const aasm::Operand &op) {
+std::string print_aasm_op(const Program &prog, const Function &func, const aasm::Operand &op) {
     if (auto *imm = std::get_if<aasm::Imm>(&op.value)) {
         return std::to_string(imm->val);
     } else if (auto *immb = std::get_if<aasm::ImmB>(&op.value)) {
@@ -77,7 +77,7 @@ std::string gep_t(const Type &t) {
     }
 }
 
-void print_aasm_binary(const cfg::Program &prog, const cfg::Function &func, const aasm::Binary &bin) {
+void print_aasm_binary(const Program &prog, const Function &func, const aasm::Binary &bin) {
     auto p_op = [&](const aasm::Operand &op) {
         return print_aasm_op(prog, func, op);
     };
@@ -104,7 +104,7 @@ void print_aasm_binary(const cfg::Program &prog, const cfg::Function &func, cons
               << p_op(bin.right) << "\n";
 }
 
-void print_aasm_insns(const cfg::Program &prog, const cfg::Function &func,
+void print_aasm_insns(const Program &prog, const Function &func,
         const cfg::RefMap &ref_map, const cfg::Ref &ref, const std::vector<aasm::Ins> &insns) {
 
     auto p_op = [&](const aasm::Operand &op) {
@@ -193,7 +193,7 @@ void print_aasm_insns(const cfg::Program &prog, const cfg::Function &func,
     }
 }
 
-void print_aasm_cfg(const cfg::Program &prog, const cfg::Function &func, const cfg::RefMap &ref_map) {
+void print_aasm_cfg(const Program &prog, const Function &func, const cfg::RefMap &ref_map) {
     auto print_aasm_ref = [&](cfg::Ref &ref) {
         std::cout << "\nl" << ref_map.at(ref) << ":\n";
         print_aasm_insns(prog, func, ref_map, ref, cfg_instructions(ref));
@@ -202,7 +202,7 @@ void print_aasm_cfg(const cfg::Program &prog, const cfg::Function &func, const c
     cfg_traverse(func.entry_ref, print_aasm_ref);
 }
 
-void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, const cfg::RefMap &ref_map, bool ssa) {
+void print_aasm_function(const Program &prog, const Function &func, const cfg::RefMap &ref_map, bool ssa) {
     std::cout << "define " << aasm_type(func.return_type) << " @"
               << func.id << "(";
     bool first = true;
@@ -231,7 +231,7 @@ void print_aasm_function(const cfg::Program &prog, const cfg::Function &func, co
     std::cout << "}\n";
 }
 
-void print_aasm_program(const cfg::Program &prog, bool ssa) {
+void print_aasm_program(const Program &prog, bool ssa) {
     print_aasm_types(prog.types);
     std::cout << "\n";
 

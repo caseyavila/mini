@@ -32,7 +32,7 @@ void map_instruction(DefMap &def_map, aasm::Ins &ins, cfg::Ref &ref, int idx) {
     }
 }
 
-DefMap definition_map(cfg::Function &func) {
+DefMap definition_map(Function &func) {
     DefMap def_map;
 
     auto lambda = [&](cfg::Ref &ref) {
@@ -48,7 +48,7 @@ DefMap definition_map(cfg::Function &func) {
     return def_map;
 }
 
-std::unordered_set<aasm::Operand> useful_ops(cfg::Function &func) {
+std::unordered_set<aasm::Operand> useful_ops(Function &func) {
     std::unordered_set<aasm::Operand> useful;
 
     auto emplace = [&](aasm::Operand &op) {
@@ -66,7 +66,7 @@ std::unordered_set<aasm::Operand> useful_ops(cfg::Function &func) {
     return useful;
 }
 
-bool remove_instructions(cfg::Function &func, Marks &marks) {
+bool remove_instructions(Function &func, Marks &marks) {
     bool same = true;
 
     auto lambda = [&](cfg::Ref &ref) {
@@ -89,7 +89,7 @@ bool remove_instructions(cfg::Function &func, Marks &marks) {
     return same;
 }
 
-void unused_result_function(cfg::Function &func) {
+void unused_result_function(Function &func) {
     bool done = false;
 
     while (!done) {
@@ -107,7 +107,7 @@ void unused_result_function(cfg::Function &func) {
     }
 }
 
-void unused_result(cfg::Program &prog) {
+void unused_result(Program &prog) {
     for (auto &[_, func] : prog.functions) {
         unused_result_function(func);
     }

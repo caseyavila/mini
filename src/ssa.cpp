@@ -25,7 +25,7 @@ using EditBlocks = std::unordered_map<std::string, std::vector<cfg::Ref>>;
 //}
 
 /* blocks that edit each variable */
-EditBlocks edit_blocks(const cfg::Function &func) {
+EditBlocks edit_blocks(const Function &func) {
     EditBlocks result;
 
     auto edit_ref = [&](cfg::Ref &ref) {
@@ -234,7 +234,7 @@ RefToRefs frontiers(const cfg::Ref &entry, RefToRefs &preds, RefToRefs &idom) {
     return fronts;
 }
 
-void place_phi_block(std::string id, cfg::Function &func, cfg::Ref &ref, std::vector<aasm::Ins> &insns, RefToRefs &preds, int idx) {
+void place_phi_block(std::string id, Function &func, cfg::Ref &ref, std::vector<aasm::Ins> &insns, RefToRefs &preds, int idx) {
     for (auto &ins : insns) {
         if (auto *phi = std::get_if<aasm::Phi>(&ins)) {
             if (phi->id == id) {
@@ -253,7 +253,7 @@ void place_phi_block(std::string id, cfg::Function &func, cfg::Ref &ref, std::ve
     insns.insert(insns.begin(), phi);
 }
 
-void place_phis(cfg::Function& func, EditBlocks &edits, RefToRefs &fronts, RefToRefs &preds) {
+void place_phis(Function& func, EditBlocks &edits, RefToRefs &fronts, RefToRefs &preds) {
     for (auto &[var, _] : edits) {
         int i = 0;
         int idx = 0;
@@ -380,7 +380,7 @@ void rename_cfg(const cfg::Ref &ref, RefToRefs &tree, RefToRefs &succs,
     }
 }
 
-void ssa_function(cfg::Program &prog, cfg::Function &func) {
+void ssa_function(Program &prog, Function &func) {
     EditBlocks edits = edit_blocks(func);
 
     auto [preds, succs] = preds_succs(func.entry_ref);
@@ -399,7 +399,7 @@ void ssa_function(cfg::Program &prog, cfg::Function &func) {
     rename_cfg(func.entry_ref, tree, succs, stack);
 }
 
-void ssa_program(cfg::Program &prog) {
+void ssa_program(Program &prog) {
     for (auto &[_, func] : prog.functions) {
         ssa_function(prog, func);
     }

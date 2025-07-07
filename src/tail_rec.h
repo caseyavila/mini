@@ -1,5 +1,5 @@
 #pragma once
 
-#include "cfg.h"
+#include "ast.h"
 
-void tail_rec_program(cfg::Program &cfg_prog);
+void tail_rec_program(Program &cfg_prog);

@@ -51,12 +51,12 @@ int main(int argc, char *argv[]) {
 	check_program(prog);
 
 	/* generate CFG */
-	cfg::Program cfg_prog = cfg_program(std::move(prog));
+	cfg_program(prog);
 
-	tail_rec_program(cfg_prog);
+	tail_rec_program(prog);
 
 	/* generate AASM */
-	aasm_program(cfg_prog);
+	aasm_program(prog);
 
 	std::string exec_name = mini_name.substr(0, mini_name.size() - extension.size());
 	std::string ll_name = exec_name + ".ll";
@@ -67,10 +67,10 @@ int main(int argc, char *argv[]) {
 	std::cout.rdbuf(ll_file.rdbuf());
 
 	//print_aasm_program(cfg_prog, false);
-	ssa_program(cfg_prog);
-	sscp_program(cfg_prog);
-	unused_result(cfg_prog);
-	print_aasm_program(cfg_prog, true);
+	ssa_program(prog);
+	sscp_program(prog);
+	unused_result(prog);
+	print_aasm_program(prog, true);
 
 	std::cout.rdbuf(stdout);
 	ll_file.close();

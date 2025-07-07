@@ -4,7 +4,7 @@
 #include <memory>
 #include <variant>
 
-void tail_rec_func(cfg::Function &func) {
+void tail_rec_func(Function &func) {
     bool tailed = false;
     auto new_entry = cfg_ref(cfg::Basic {
         {}, {}, func.entry_ref
@@ -67,7 +67,7 @@ void tail_rec_func(cfg::Function &func) {
     }
 }
 
-void tail_rec_program(cfg::Program &cfg_prog) {
+void tail_rec_program(Program &cfg_prog) {
     for (auto &[_, func]: cfg_prog.functions) {
         tail_rec_func(func);
     }

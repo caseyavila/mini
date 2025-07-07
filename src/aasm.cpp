@@ -12,9 +12,9 @@
     i give up...
 */
 
-aasm::Operand aasm_expr(cfg::Program &prog, cfg::Function &func, Expression &expr, aasm::Block &insns, int &var);
+aasm::Operand aasm_expr(Program &prog, Function &func, Expression &expr, aasm::Block &insns, int &var);
 
-aasm::Operand aasm_unary(cfg::Program &prog, cfg::Function &func, Unary &unary, aasm::Block &insns, int &var) {
+aasm::Operand aasm_unary(Program &prog, Function &func, Unary &unary, aasm::Block &insns, int &var) {
     aasm::Operand opd = aasm_expr(prog, func, *unary.expr, insns, var);
     aasm::Operand target = aasm::Operand { aasm::Var { var++ } };
     aasm::Ins ins;
@@ -34,7 +34,7 @@ aasm::Operand aasm_unary(cfg::Program &prog, cfg::Function &func, Unary &unary, 
     return target;
 }
 
-aasm::Operand aasm_binary(cfg::Program &prog, cfg::Function &func, Binary &binary, aasm::Block &insns, int &var) {
+aasm::Operand aasm_binary(Program &prog, Function &func, Binary &binary, aasm::Block &insns, int &var) {
     aasm::Operand opd_l = aasm_expr(prog, func, *binary.left, insns, var);
     aasm::Operand opd_r = aasm_expr(prog, func, *binary.right, insns, var);
     aasm::Operand target = aasm::Operand { aasm::Var { var++ } };
@@ -85,7 +85,7 @@ aasm::Operand aasm_binary(cfg::Program &prog, cfg::Function &func, Binary &binar
     return target;
 }
 
-aasm::Operand aasm_invocation(cfg::Program &prog, cfg::Function &func, Invocation &inv, bool returns, aasm::Block &insns, int &var) {
+aasm::Operand aasm_invocation(Program &prog, Function &func, Invocation &inv, bool returns, aasm::Block &insns, int &var) {
     std::vector<aasm::Operand> args;
 
     for (auto &arg : inv.arguments) {
@@ -107,7 +107,7 @@ aasm::Operand aasm_invocation(cfg::Program &prog, cfg::Function &func, Invocatio
     }
 }
 
-aasm::Operand aasm_dot(cfg::Program &prog, cfg::Function &func, Dot &dot, aasm::Block &insns, int &var) {
+aasm::Operand aasm_dot(Program &prog, Function &func, Dot &dot, aasm::Block &insns, int &var) {
     aasm::Operand left = aasm_expr(prog, func, *dot.expr, insns, var);
     Struct *struct_t = std::get_if<Struct>(&left.type);
 
@@ -126,7 +126,7 @@ aasm::Operand aasm_dot(cfg::Program &prog, cfg::Function &func, Dot &dot, aasm::
     return target;
 }
 
-aasm::Operand aasm_index(cfg::Program &prog, cfg::Function &func, Index &idx, aasm::Block &insns, int &var) {
+aasm::Operand aasm_index(Program &prog, Function &func, Index &idx, aasm::Block &insns, int &var) {
     aasm::Operand left = aasm_expr(prog, func, *idx.left, insns, var);
     aasm::Operand idx_op = aasm_expr(prog, func, *idx.index, insns, var);
     aasm::Operand gep = aasm::Operand { aasm::Var { var++ }, Int {} };
@@ -138,7 +138,7 @@ aasm::Operand aasm_index(cfg::Program &prog, cfg::Function &func, Index &idx, aa
     return target;
 }
 
-aasm::Operand aasm_expr(cfg::Program &prog, cfg::Function &func, Expression &expr, aasm::Block &insns, int &var) {
+aasm::Operand aasm_expr(Program &prog, Function &func, Expression &expr, aasm::Block &insns, int &var) {
     if (auto *id = std::get_if<std::string>(&expr)) {
         Type type = check_env(func.local_env, prog.top_env, *id);
         aasm::Operand id_op;
@@ -182,7 +182,7 @@ aasm::Operand aasm_expr(cfg::Program &prog, cfg::Function &func, Expression &exp
     }
 }
 
-aasm::Operand aasm_lvalue(cfg::Program &prog, cfg::Function &func, LValue &lval, aasm::Block &insns, int &var) {
+aasm::Operand aasm_lvalue(Program &prog, Function &func, LValue &lval, aasm::Block &insns, int &var) {
     if (auto *id = std::get_if<std::string>(&lval)) {
         aasm::Value val;
         if (func.local_env.contains(*id)) {
@@ -222,7 +222,7 @@ aasm::Operand aasm_lvalue(cfg::Program &prog, cfg::Function &func, LValue &lval,
     }
 }
 
-void aasm_block(cfg::Program &prog, cfg::Function &func, Block &stmts, aasm::Block &insns, int &var) {
+void aasm_block(Program &prog, Function &func, Block &stmts, aasm::Block &insns, int &var) {
     for (auto &stmt : stmts) {
         if (auto *p = std::get_if<Print>(&stmt)) {
             aasm::Operand arg = aasm_expr(prog, func, p->expr, insns, var);
@@ -258,7 +258,7 @@ void aasm_block(cfg::Program &prog, cfg::Function &func, Block &stmts, aasm::Blo
     }
 }
 
-void aasm_function(cfg::Program &prog, cfg::Function &func) {
+void aasm_function(Program &prog, Function &func) {
     int var = func.parameters.size() + 1;
 
     auto aasm_ref = [&](cfg::Ref &ref) {
@@ -277,7 +277,7 @@ void aasm_function(cfg::Program &prog, cfg::Function &func) {
     cfg_traverse(func.entry_ref, aasm_ref);
 }
 
-void aasm_program(cfg::Program &prog) {
+void aasm_program(Program &prog) {
     for (auto &[_, func] : prog.functions) {
         aasm_function(prog, func);
     }

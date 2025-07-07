@@ -129,8 +129,7 @@ using Smt = std::variant<Invocation, Assignment, Conditional, Loop,
                          Print, PrintLn, Delete, Return, std::vector<T>>;
 
 template <template<class> class K>
-struct Fix : K<Fix<K>>
-{
+struct Fix : K<Fix<K>> {
    using K<Fix>::K;
 };
 
@@ -148,26 +147,28 @@ struct Loop {
 	std::vector<Statement> body;
 };
 
-/* Program */
+struct Function;
+
+using Functions = std::unordered_map<std::string, Function>;
+
+struct Program {
+    TypeDeclarations types;
+    std::vector<Declaration> declarations;
+    Functions functions;
+    Environment top_env;
+};
+
+#include "cfg.h"
 
 struct Function {
 	std::string id;
     std::vector<Declaration> parameters;
     Type return_type;
     std::vector<Declaration> declarations;
-    Block body;
     Environment local_env;
+    Block body;
+    cfg::Ref entry_ref;
+    cfg::Ref ret_ref;
 };
-
-template <typename T>
-struct GenericProgram {
-    TypeDeclarations types;
-    std::vector<Declaration> declarations;
-    T functions;
-    Environment top_env;
-};
-
-using Functions = std::unordered_map<std::string, Function>;
-using Program = GenericProgram<Functions>;
 
 Program parse_program(MiniParser::ProgramContext *ctx);

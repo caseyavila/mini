@@ -141,7 +141,7 @@ std::vector<aasm::Ins> &cfg_instructions(const cfg::Ref &ref) {
     }
 }
 
-const cfg::RefMap cfg_enumerate(const cfg::Program &prog) {
+const cfg::RefMap cfg_enumerate(const Program &prog) {
     cfg::RefMap map;
     int block_id = 0;
 
@@ -161,7 +161,7 @@ bool cfg_equals(const cfg::Ref &ref1, const cfg::Ref &ref2) {
     return set.contains(ref2);
 }
 
-cfg::Function cfg_function(Function &&func) {
+void cfg_function(Function &func) {
     Block ret_stmts;
 
     if (std::holds_alternative<Void>(func.return_type)) {
@@ -175,29 +175,14 @@ cfg::Function cfg_function(Function &&func) {
         {}
     });
 
-    return cfg::Function {
-        std::move(func.id),
-        std::move(func.parameters),
-        std::move(func.return_type),
-        std::move(func.declarations),
-        cfg_block(func.body.begin(), func.body.end(), {}, std::move(return_block)),
-        std::move(return_block),
-        std::move(func.local_env)
-    };
+    func.entry_ref = cfg_block(func.body.begin(), func.body.end(), {}, return_block);
+    func.ret_ref = return_block;
 }
 
-cfg::Program cfg_program(Program &&prog) {
-    cfg::Functions funcs;
-    for (auto &[id, func] : prog.functions) {
-        funcs.emplace(id, cfg_function(std::move(func)));
+void cfg_program(Program &prog) {
+    for (auto &[_, func] : prog.functions) {
+        cfg_function(func);
     }
-
-    return cfg::Program {
-        std::move(prog.types),
-        std::move(prog.declarations),
-        std::move(funcs),
-        std::move(prog.top_env)
-    };
 }
 
 const cfg::Ref ref_weaken(const cfg::Ref &ref) {

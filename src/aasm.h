@@ -6,8 +6,6 @@
 #include <variant>
 #include <vector>
 
-#include "ast.h"
-
 namespace aasm {
     struct Imm {
         int64_t val;
@@ -35,17 +33,6 @@ namespace aasm {
 
     using Value = std::variant<Imm, ImmB, Var, Id, Glob, Null>;
 
-    struct Operand {
-        Value value;
-        Type type;
-        bool operator==(const Operand& other) const {
-              return value == other.value;
-        }
-    };
-
-    struct Load { Operand target; Operand ptr; };
-    struct Store { Operand value; Operand ptr; };
-
     struct Add {};
     struct Sub {};
     struct Mul {};
@@ -62,6 +49,37 @@ namespace aasm {
 
     using BinaryOp = std::variant<Add, Sub, Mul, Div, Xor, And,
                                   Or, Gt, Ge, Lt, Le, Eq, Ne>;
+
+    struct Load;
+    struct Store;
+    struct Binary;
+    struct Call;
+    struct Ret;
+    struct Free;
+    struct NewS;
+    struct NewA;
+    struct Gep;
+    struct Jump;
+    struct Br;
+    struct Phi;
+
+    using Ins = std::variant<Load, Store, Binary, Call, Ret, Br, Jump, Free, NewS, NewA, Gep, Phi>;
+    using Block = std::vector<Ins>;
+}
+
+#include "cfg.h"
+
+namespace aasm {
+    struct Operand {
+        Value value;
+        Type type;
+        bool operator==(const Operand& other) const {
+              return value == other.value;
+        }
+    };
+
+    struct Load { Operand target; Operand ptr; };
+    struct Store { Operand value; Operand ptr; };
 
     struct Binary {
         BinaryOp op;
@@ -97,18 +115,6 @@ namespace aasm {
         Operand value;
         Operand index;
     };
-
-    struct Jump;
-    struct Br;
-    struct Phi;
-
-    using Ins = std::variant<Load, Store, Binary, Call, Ret, Br, Jump, Free, NewS, NewA, Gep, Phi>;
-    using Block = std::vector<Ins>;
-}
-
-#include "cfg.h"
-
-namespace aasm {
     struct Jump { cfg::Ref block; };
 
     struct Br {
@@ -170,4 +176,4 @@ namespace std {
 }
 
 void in_op_traverse(aasm::Ins &ins, std::function<void(aasm::Operand &)> lambda);
-void aasm_program(cfg::Program &prog);
+void aasm_program(Program &prog);

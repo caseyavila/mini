@@ -15,7 +15,7 @@ bool val_eq(const sscp::Value &val, const bool &b) {
 using UseMap = std::unordered_map<aasm::Operand, std::vector<std::pair<cfg::Ref, int>>>;
 using ValMap = std::unordered_map<aasm::Operand, sscp::Value>;
 
-UseMap use_map(cfg::Function &func, DefMap &def_map) {
+UseMap use_map(Function &func, DefMap &def_map) {
     UseMap u_map;
 
     auto lambda = [&](cfg::Ref &ref) {
@@ -185,7 +185,7 @@ void rewrite_ins(cfg::Ref &ref, aasm::Ins &ins, ValMap &value_map) {
     in_op_traverse(ins, lambda);
 }
 
-void sscp_function(cfg::Function &func) {
+void sscp_function(Function &func) {
     DefMap def_map = definition_map(func);
     UseMap u_map = use_map(func, def_map);
     ValMap value_map;
@@ -211,7 +211,7 @@ void sscp_function(cfg::Function &func) {
     } while (new_const.size() != 0);
 }
 
-void sscp_program(cfg::Program &prog) {
+void sscp_program(Program &prog) {
     for (auto &[_, func] : prog.functions) {
         sscp_function(func);
     }

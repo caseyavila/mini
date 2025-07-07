@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cfg.h"
+#include "ast.h"
 #include <optional>
 
 namespace sscp {
@@ -19,4 +19,4 @@ namespace sscp {
     bool operator==(const Value& val, const bool& b);
 }
 
-void sscp_program(cfg::Program &prog);
+void sscp_program(Program &prog);

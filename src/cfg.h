@@ -3,10 +3,9 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <map>
 #include <variant>
 #include <vector>
-
-#include "ast.h"
 
 namespace cfg {
     struct Basic;
@@ -35,20 +34,10 @@ namespace cfg {
         }
     };
 
-    struct Function {
-	std::string id;
-        std::vector<Declaration> parameters;
-        Type return_type;
-        std::vector<Declaration> declarations;
-        Ref entry_ref;
-        Ref ret_ref;
-        Environment local_env;
-    };
-    using Functions = std::unordered_map<std::string, Function>;
-    using Program = GenericProgram<Functions>;
     using RefMap = std::map<Ref, int, RefOwnerLess>;
 }
 
+#include "ast.h"
 #include "aasm.h"
 
 namespace cfg {
@@ -73,12 +62,12 @@ namespace cfg {
     };
 }
 
-cfg::Program cfg_program(Program &&prog);
+void cfg_program(Program &prog);
 cfg::Ref cfg_ref(cfg::Cfg &&cfg);
 template <typename T>
 std::shared_ptr<T> cfg_get_if(const cfg::Ref *ref);
 void cfg_traverse(const cfg::Ref &ref, std::function<void(cfg::Ref &)> lambda);
 std::vector<aasm::Ins> &cfg_instructions(const cfg::Ref &ref);
 bool cfg_equals(const cfg::Ref &ref1, const cfg::Ref &ref2);
-const cfg::RefMap cfg_enumerate(const cfg::Program &prog);
+const cfg::RefMap cfg_enumerate(const Program &prog);
 const cfg::Ref ref_weaken(const cfg::Ref &ref);

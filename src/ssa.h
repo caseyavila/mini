@@ -4,4 +4,4 @@
 
 using RefToRefs = std::map<cfg::Ref, std::set<cfg::Ref, cfg::RefOwnerLess>, cfg::RefOwnerLess>;
 
-void ssa_program(cfg::Program &prog);
+void ssa_program(Program &prog);
