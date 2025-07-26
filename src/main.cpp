@@ -12,19 +12,48 @@
 #include "type_checker.h"
 #include "error_listener.h"
 #include <cstdlib>
+#include <filesystem>
 
 constexpr std::string_view extension = ".mini";
 
-int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <file>\n";
-        return 1;
+void usage(char *cmd) {
+    std::cerr << "Usage: " << cmd << " [-S] [--tail] [--ssa [--sscp] [--unused]] <file>\n";
+    std::exit(1);
+}
+
+std::unordered_set<std::string> parse_args(int argc, char *argv[]) {
+    std::unordered_set<std::string> valid = {
+        "-S",
+        "--tail",
+        "--ssa",
+        "--sscp",
+        "--unused"
+    };
+
+    std::unordered_set<std::string> args;
+
+    for (int i = 1; i < argc - 1; i++) {
+        if (!valid.contains(argv[i])) {
+            std::cerr << "Unrecongnized option: '" << argv[i] << "'\n";
+            usage(argv[0]);
+        }
+        args.emplace(argv[i]);
     }
 
-    std::string mini_name = argv[1];
-    if (!mini_name.ends_with(extension)) {
+    if (!args.contains("--ssa") && (args.contains("--sscp") || args.contains("--unused"))) {
+        usage(argv[0]);
+    }
+
+    return args;
+}
+
+int main(int argc, char *argv[]) {
+    std::unordered_set<std::string> args = parse_args(argc, argv);
+
+    std::string mini_name = argv[argc - 1];
+    if (std::filesystem::path(mini_name).extension() != extension) {
         std::cerr << "Can only compile files ending with '" << extension << "'\n";
-        return 1;
+        usage(argv[0]);
     }
 
 	std::ifstream mini_file(mini_name);
@@ -53,32 +82,40 @@ int main(int argc, char *argv[]) {
 	/* generate CFG */
 	cfg_program(prog);
 
-	tail_rec_program(prog);
+	if (args.contains("--tail")) {
+	    tail_rec_program(prog);
+	}
 
 	/* generate AASM */
 	aasm_program(prog);
 
-	std::string exec_name = mini_name.substr(0, mini_name.size() - extension.size());
-	std::string ll_name = exec_name + ".ll";
-	std::ofstream ll_file(ll_name);
+	if (args.contains("--ssa")) {
+	    ssa_program(prog);
+		if (args.contains("--sscp")) {
+		    sscp_program(prog);
+		}
+		if (args.contains("--unused")) {
+		    unused_result(prog);
+		}
+	}
+
+	std::string exec_name = std::filesystem::path(mini_name).stem();
+	std::string s_name = exec_name + ".ll";
+	std::ofstream s_file(s_name);
 
 	/* save stdout and redirect to .ll */
 	std::streambuf *stdout = std::cout.rdbuf();
-	std::cout.rdbuf(ll_file.rdbuf());
+	std::cout.rdbuf(s_file.rdbuf());
 
-	//print_aasm_program(cfg_prog, false);
-	ssa_program(prog);
-	sscp_program(prog);
-	unused_result(prog);
-	print_aasm_program(prog, true);
+	print_aasm_program(prog, args.contains("--ssa"));
 
 	std::cout.rdbuf(stdout);
-	ll_file.close();
+	s_file.close();
 
-	std::system(("clang util.c " + ll_name).c_str());
-	//std::remove(ll_name.c_str());
-
-	//ssa_program(cfg_prog);
+	if (!args.contains("-S")) {
+    	std::system(("clang util.c " + s_name + " -o " + exec_name).c_str());
+    	std::remove(s_name.c_str());
+	}
 
     return 0;
 }
