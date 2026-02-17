@@ -1,4 +1,5 @@
-#pragma once
+#ifndef AASM_H
+#define AASM_H
 
 #include <optional>
 #include <string>
@@ -9,26 +10,26 @@
 namespace aasm {
     struct Imm {
         int64_t val;
-        bool operator==(const Imm& other) const { return val == other.val; }
+        friend bool operator==(const Imm& lhs, const Imm& rhs) = default;
     };
     struct ImmB {
         bool val;
-        bool operator==(const ImmB& other) const { return val == other.val; }
+        friend bool operator==(const ImmB& lhs, const ImmB& rhs) = default;
     };
     struct Var {
         int id;
-        bool operator==(const Var& other) const { return id == other.id; }
+        friend bool operator==(const Var& lhs, const Var& rhs) = default;
     };
     struct Id {
         std::string id;
-        bool operator==(const Id& other) const { return id == other.id; }
+        friend bool operator==(const Id& lhs, const Id& rhs) = default;
     };
     struct Glob {
         std::string id;
-        bool operator==(const Glob& other) const { return id == other.id; }
+        friend bool operator==(const Glob& lhs, const Glob& rhs) = default;
     };
     struct Null {
-        bool operator==(const Null& other) const { return true; }
+        friend bool operator==(const Null& lhs, const Null& rhs) { return true; };
     };
 
     using Value = std::variant<Imm, ImmB, Var, Id, Glob, Null>;
@@ -73,8 +74,8 @@ namespace aasm {
     struct Operand {
         Value value;
         Type type;
-        bool operator==(const Operand& other) const {
-              return value == other.value;
+        friend bool operator==(const Operand& lhs, const Operand& rhs) {
+              return lhs.value == rhs.value;
         }
     };
 
@@ -175,5 +176,7 @@ namespace std {
     };
 }
 
-void in_op_traverse(aasm::Ins &ins, std::function<void(aasm::Operand &)> lambda);
-void aasm_program(Program &prog);
+void in_op_traverse(aasm::Ins& ins, std::function<void(aasm::Operand&)> lambda);
+void aasm_program(Program& prog);
+
+#endif

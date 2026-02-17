@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SSCP_H
+#define SSCP_H
 
 #include "ast.h"
 #include <optional>
@@ -20,3 +21,5 @@ namespace sscp {
 }
 
 void sscp_program(Program &prog);
+
+#endif

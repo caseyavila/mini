@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ERROR_LISTENER_H
+#define ERROR_LISTENER_H
 
 #include "antlr4-runtime.h"
 
@@ -11,3 +12,5 @@ class ErrorListener : public antlr4::BaseErrorListener {
         std::exit(1);
     }
 };
+
+#endif

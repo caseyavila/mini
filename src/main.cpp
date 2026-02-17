@@ -1,3 +1,7 @@
+#include <cstdlib>
+#include <filesystem>
+#include <unordered_set>
+
 #include "MiniLexer.h"
 #include "MiniParser.h"
 
@@ -5,19 +9,18 @@
 #include "sscp.h"
 #include "tail_rec.h"
 #include "unused_result.h"
-#include "print_aasm.h"
+#include "print_arm.h"
+#include "print_llvm.h"
 #include "ast.h"
 #include "cfg.h"
 #include "ssa.h"
 #include "type_checker.h"
 #include "error_listener.h"
-#include <cstdlib>
-#include <filesystem>
 
 constexpr std::string_view extension = ".mini";
 
 void usage(char *cmd) {
-    std::cerr << "Usage: " << cmd << " [-S] [--tail] [--ssa [--sscp] [--unused]] <file>\n";
+    std::cerr << "Usage: " << cmd << " [-S] [--tail] [--arm] [--ssa [--sscp] [--unused]] <file>\n";
     std::exit(1);
 }
 
@@ -27,10 +30,15 @@ std::unordered_set<std::string> parse_args(int argc, char *argv[]) {
         "--tail",
         "--ssa",
         "--sscp",
-        "--unused"
+        "--unused",
+        "--arm"
     };
 
     std::unordered_set<std::string> args;
+
+    if (argc < 2) {
+        usage(argv[0]);
+    }
 
     for (int i = 1; i < argc - 1; i++) {
         if (!valid.contains(argv[i])) {
@@ -72,23 +80,20 @@ int main(int argc, char *argv[]) {
     parser.addErrorListener(&errorListener);
     lexer.addErrorListener(&errorListener);
 
-    /* generate AST */
 	Program prog = parse_program(parser.program());
     mini_file.close();
 
-	/* typecheck */
 	check_program(prog);
-
-	/* generate CFG */
 	cfg_program(prog);
 
+	/* cfg optimizations */
 	if (args.contains("--tail")) {
 	    tail_rec_program(prog);
 	}
 
-	/* generate AASM */
 	aasm_program(prog);
 
+	/* aasm optimizations */
 	if (args.contains("--ssa")) {
 	    ssa_program(prog);
 		if (args.contains("--sscp")) {
@@ -100,20 +105,24 @@ int main(int argc, char *argv[]) {
 	}
 
 	std::string exec_name = std::filesystem::path(mini_name).stem();
-	std::string s_name = exec_name + ".ll";
+	std::string s_name = exec_name + (args.contains("--arm") ? ".s" : ".ll");
 	std::ofstream s_file(s_name);
 
 	/* save stdout and redirect to .ll */
 	std::streambuf *stdout = std::cout.rdbuf();
 	std::cout.rdbuf(s_file.rdbuf());
 
-	print_aasm_program(prog, args.contains("--ssa"));
+	if (args.contains("--arm")) {
+   	    print_arm_program(prog, args.contains("--ssa"));
+	} else {
+   	    print_llvm_program(prog, args.contains("--ssa"));
+	}
 
 	std::cout.rdbuf(stdout);
 	s_file.close();
 
 	if (!args.contains("-S")) {
-    	std::system(("clang util.c " + s_name + " -o " + exec_name).c_str());
+        std::system(("clang -Wno-override-module util.c " + s_name + " -o " + exec_name).c_str());
     	std::remove(s_name.c_str());
 	}
 

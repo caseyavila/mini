@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
+set -e
+
 for d in tests/* ; do
     test=$(basename "$d")
     echo $test:

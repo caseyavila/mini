@@ -4,8 +4,8 @@ GRAMMAR=Mini.g4
 
 RUNTIME=antlr/runtime
 CC=g++
-CCARGS=-c -I $(RUNTIME)/include/ -I $(GENERATED) -std=c++20 -g -Wunused
-LDARGS=-g
+CCARGS=-c -I $(RUNTIME)/include/ -I $(GENERATED) -std=c++20 -ggdb -Wunused
+LDARGS=-ggdb
 LIBS=$(RUNTIME)/lib/libantlr4-runtime.a
 
 GEN_SRC=generated/MiniLexer.cpp \

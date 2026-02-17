@@ -1,12 +1,12 @@
 #include <string>
 #include <variant>
 
-#include "print_aasm.h"
+#include "print_llvm.h"
 #include "aasm.h"
 #include "ast.h"
 #include "cfg.h"
 
-std::string aasm_type(const Type &t) {
+std::string llvm_type(const Type &t) {
     if (std::holds_alternative<Int>(t)) {
         return "i64";
     } else if (std::holds_alternative<Bool>(t)) {
@@ -23,23 +23,23 @@ std::string aasm_type(const Type &t) {
     }
 }
 
-void print_aasm_types(const TypeDeclarations &type_decls) {
+void print_llvm_types(const TypeDeclarations &type_decls) {
     for (auto &[type_id, decls] : type_decls) {
         std::cout << "%struct." << type_id << " = type {";
         bool first = true;
         for (auto &decl : decls) {
             if (!first) std::cout << ", ";
             first = false;
-            std::cout << aasm_type(decl.type);
+            std::cout << llvm_type(decl.type);
         }
 
         std::cout << "}\n";
     }
 }
 
-void print_aasm_decls(const std::vector<Declaration> &decls) {
+void print_llvm_decls(const std::vector<Declaration> &decls) {
     for (auto &decl : decls) {
-        std::cout << "@" << decl.id << " = common global " << aasm_type(decl.type);
+        std::cout << "@" << decl.id << " = common global " << llvm_type(decl.type);
         if (std::holds_alternative<Struct>(decl.type) ||
             std::holds_alternative<Array>(decl.type)) {
             std::cout << " null";
@@ -50,7 +50,7 @@ void print_aasm_decls(const std::vector<Declaration> &decls) {
     }
 }
 
-std::string print_aasm_op(const Program &prog, const Function &func, const aasm::Operand &op) {
+std::string print_llvm_op(const Program &prog, const Function &func, const aasm::Operand &op) {
     if (auto *imm = std::get_if<aasm::Imm>(&op.value)) {
         return std::to_string(imm->val);
     } else if (auto *immb = std::get_if<aasm::ImmB>(&op.value)) {
@@ -65,7 +65,7 @@ std::string print_aasm_op(const Program &prog, const Function &func, const aasm:
         return "@" + glob->id;
     }
 
-    std::cerr << "Unhandled AASM operand. Quitting...\n";
+    std::cerr << "Unhandled llvm operand. Quitting...\n";
     std::exit(1);
 }
 
@@ -77,9 +77,9 @@ std::string gep_t(const Type &t) {
     }
 }
 
-void print_aasm_binary(const Program &prog, const Function &func, const aasm::Binary &bin) {
+void print_llvm_binary(const Program &prog, const Function &func, const aasm::Binary &bin) {
     auto p_op = [&](const aasm::Operand &op) {
-        return print_aasm_op(prog, func, op);
+        return print_llvm_op(prog, func, op);
     };
 
     std::string opcode;
@@ -99,32 +99,32 @@ void print_aasm_binary(const Program &prog, const Function &func, const aasm::Bi
 
     std::cout << p_op(bin.target) << " = "
               << opcode << " "
-              << aasm_type(bin.left.type) << " "
+              << llvm_type(bin.left.type) << " "
               << p_op(bin.left) << ", "
               << p_op(bin.right) << "\n";
 }
 
-void print_aasm_insns(const Program &prog, const Function &func,
+void print_llvm_insns(const Program &prog, const Function &func,
         const cfg::RefMap &ref_map, const cfg::Ref &ref, const std::vector<aasm::Ins> &insns) {
 
     auto p_op = [&](const aasm::Operand &op) {
-        return print_aasm_op(prog, func, op);
+        return print_llvm_op(prog, func, op);
     };
 
     for (auto &ins : insns) {
         if (auto *bin = std::get_if<aasm::Binary>(&ins)) {
-            print_aasm_binary(prog, func, *bin);
+            print_llvm_binary(prog, func, *bin);
         } else if (auto *load = std::get_if<aasm::Load>(&ins)) {
             std::cout << p_op(load->target) << " = load "
-                      << aasm_type(load->target.type) << ", ptr "
+                      << llvm_type(load->target.type) << ", ptr "
                       << p_op(load->ptr) << "\n";
         } else if (auto *store = std::get_if<aasm::Store>(&ins)) {
-            std::cout << "store " << aasm_type(store->value.type)
+            std::cout << "store " << llvm_type(store->value.type)
                       << " " << p_op(store->value)
                       << ", ptr " << p_op(store->ptr) << "\n";
         } else if (auto *ret = std::get_if<aasm::Ret>(&ins)) {
             if (ret->value.has_value()) {
-                std::cout << "ret " << aasm_type(ret->value.value().type)
+                std::cout << "ret " << llvm_type(ret->value.value().type)
                           << " " << p_op(ret->value.value()) << "\n";
             } else {
                 std::cout << "ret void\n";
@@ -166,16 +166,16 @@ void print_aasm_insns(const Program &prog, const Function &func,
             } else {
                 ret_t = prog.functions.at(call->id).return_type;
             }
-            std::cout << "call " << aasm_type(ret_t) << " @" << call->id << "(";
+            std::cout << "call " << llvm_type(ret_t) << " @" << call->id << "(";
             bool first = true;
             for (auto &arg : call->arguments) {
                 if (!first) std::cout << ", ";
                 first = false;
-                std::cout << aasm_type(arg.type) << " " << p_op(arg);
+                std::cout << llvm_type(arg.type) << " " << p_op(arg);
             }
             std::cout << ") \n";
         } else if (auto *phi = std::get_if<aasm::Phi>(&ins)) {
-            std::cout << p_op(phi->target) << " = phi " << aasm_type(phi->target.type) << " ";
+            std::cout << p_op(phi->target) << " = phi " << llvm_type(phi->target.type) << " ";
             bool first = true;
             for (auto &[pred, op] : phi->bindings) {
                 if (!first) {
@@ -187,60 +187,60 @@ void print_aasm_insns(const Program &prog, const Function &func,
             }
             std::cout << "\n";
         } else {
-            std::cerr << "Unhandled AASM instruction. Quitting...\n";
+            std::cerr << "Unhandled llvm instruction. Quitting...\n";
             std::exit(1);
         }
     }
 }
 
-void print_aasm_cfg(const Program &prog, const Function &func, const cfg::RefMap &ref_map) {
-    auto print_aasm_ref = [&](cfg::Ref &ref) {
+void print_llvm_cfg(const Program &prog, const Function &func, const cfg::RefMap &ref_map) {
+    auto print_llvm_ref = [&](cfg::Ref &ref) {
         std::cout << "\nl" << ref_map.at(ref) << ":\n";
-        print_aasm_insns(prog, func, ref_map, ref, cfg_instructions(ref));
+        print_llvm_insns(prog, func, ref_map, ref, cfg_instructions(ref));
     };
 
-    cfg_traverse(func.entry_ref, print_aasm_ref);
+    cfg_traverse(func.entry_ref, print_llvm_ref);
 }
 
-void print_aasm_function(const Program &prog, const Function &func, const cfg::RefMap &ref_map, bool ssa) {
-    std::cout << "define " << aasm_type(func.return_type) << " @"
+void print_llvm_function(const Program &prog, const Function &func, const cfg::RefMap &ref_map, bool ssa) {
+    std::cout << "define " << llvm_type(func.return_type) << " @"
               << func.id << "(";
     bool first = true;
     int i = 0;
     for (auto &decl : func.parameters) {
         if (!first) std::cout << ", ";
         first = false;
-        std::cout << aasm_type(decl.type) << " %" << (ssa ? decl.id : std::to_string(i++));
+        std::cout << llvm_type(decl.type) << " %" << (ssa ? decl.id : std::to_string(i++));
     }
     std::cout << ") {\n";
 
     if (!ssa) {
         for (auto &[id, type] : func.local_env) {
-            std::cout << "%" << id << " = alloca " << aasm_type(type) << "\n";
+            std::cout << "%" << id << " = alloca " << llvm_type(type) << "\n";
         }
         i = 0;
         for (auto &param : func.parameters) {
-            std::cout << "store " << aasm_type(param.type) << " %" << i++ << ", ptr %" << param.id << "\n";
+            std::cout << "store " << llvm_type(param.type) << " %" << i++ << ", ptr %" << param.id << "\n";
         }
     }
 
     std::cout << "br label %l" << ref_map.at(func.entry_ref) << "\n";
 
-    print_aasm_cfg(prog, func, ref_map);
+    print_llvm_cfg(prog, func, ref_map);
 
     std::cout << "}\n";
 }
 
-void print_aasm_program(const Program &prog, bool ssa) {
-    print_aasm_types(prog.types);
+void print_llvm_program(const Program &prog, bool ssa) {
+    print_llvm_types(prog.types);
     std::cout << "\n";
 
-    print_aasm_decls(prog.declarations);
+    print_llvm_decls(prog.declarations);
     std::cout << "\n";
 
     cfg::RefMap ref_map = cfg_enumerate(prog);
     for (auto &[_, func] : prog.functions) {
-        print_aasm_function(prog, func, ref_map, ssa);
+        print_llvm_function(prog, func, ref_map, ssa);
         std::cout << "\n";
     }
 

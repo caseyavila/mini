@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CFG_H
+#define CFG_H
 
 #include <functional>
 #include <memory>
@@ -71,3 +72,5 @@ std::vector<aasm::Ins> &cfg_instructions(const cfg::Ref &ref);
 bool cfg_equals(const cfg::Ref &ref1, const cfg::Ref &ref2);
 const cfg::RefMap cfg_enumerate(const Program &prog);
 const cfg::Ref ref_weaken(const cfg::Ref &ref);
+
+#endif

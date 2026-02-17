@@ -1,4 +1,5 @@
-#pragma once
+#ifndef AST_H
+#define AST_H
 
 #include <string>
 #include <unordered_map>
@@ -172,3 +173,5 @@ struct Function {
 };
 
 Program parse_program(MiniParser::ProgramContext *ctx);
+
+#endif

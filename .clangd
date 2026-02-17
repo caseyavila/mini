@@ -1,5 +1,5 @@
 CompileFlags:
   Add:
     - "-std=c++20"
-    - "--include-directory=/home/casey/Projects/mini/antlr/runtime/include"
-    - "--include-directory=/home/casey/Projects/mini/generated"
+    - "--include-directory=/home/casey/projects/mini/antlr/runtime/include"
+    - "--include-directory=/home/casey/projects/mini/generated"
